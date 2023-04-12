@@ -2,9 +2,9 @@ from threading import local
 import numpy as np
 import copy
 import itertools
-from basis import Basis
+from .basis import Basis
 
-from qr_solver import QR_solve
+from .qr_solver import QR_solve
 
 import matplotlib.pyplot as plt
 from matplotlib import cm

@@ -16,12 +16,12 @@ with open('requirements.txt') as f:
 
 # Get version
 cwd = os.path.abspath(os.path.dirname(__file__))
-versionpath = os.path.join(cwd, 'cls', 'version.py')
+versionpath = os.path.join(cwd, 'clspde', 'version.py')
 version = runpy.run_path(versionpath)['__version__']
 
 
 setup(
-    name="cls",
+    name="clspde",
     version=version,
     author="Neverov Andrei",
     description="Collocation least squares PDE system solver",
