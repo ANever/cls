@@ -3,8 +3,8 @@
 
 import matplotlib.pyplot as plt
 
-from solution_gf_wip import Solution
-from basis import Basis
+from .solution_gf_wip import Solution
+from .basis import Basis
 import itertools
 import numpy as np
 

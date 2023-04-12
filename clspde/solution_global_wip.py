@@ -2,7 +2,7 @@ from re import I
 import numpy as np
 import copy
 import itertools
-from basis import Basis
+from .basis import Basis
 
 from qr_solver import QR_solve, SVD_solve
 

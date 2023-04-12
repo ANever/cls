@@ -2,7 +2,7 @@ from threading import local
 import numpy as np
 import copy
 import itertools
-from basis import Basis
+from .basis import Basis
 from numpy.linalg import matrix_power
 import matplotlib.pyplot as plt
 
