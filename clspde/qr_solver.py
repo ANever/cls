@@ -78,8 +78,8 @@ def SVD_solve(A, b, threshold = 10**(-4), verbose = False):
     u, s ,vh = np.linalg.svd(A, full_matrices=True)
     
     cond = s[0]/s[-1]
-    if (cond > 1e3) or verbose:
-        print('Matrix conditioning:', cond)
+    if (cond > 1e5) or verbose:
+        print('WARNING: Matrix conditioning ', cond)
     if verbose:
         print('SVD: depricated ', sum(s<threshold),'/',len(s),' singular values')
     s[s < threshold] = 0

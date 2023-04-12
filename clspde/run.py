@@ -4,7 +4,7 @@ from basis import Basis
 import itertools
 import numpy as np
 
-from params import *
+from .params import *
 
 params['basis']=Basis(params['power'])
 sol = Solution(**params)
