@@ -1,14 +1,13 @@
-from re import I
 import numpy as np
 import copy
 import itertools
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from math import comb
+
 from .basis import Basis
 from .qr_solver import QR_solve, SVD_solve
 
-import matplotlib.pyplot as plt
-from matplotlib import cm
-
-from math import comb
 
 def concat(a:np.ndarray, b:np.ndarray):
     a = np.array(a)
