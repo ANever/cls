@@ -388,24 +388,37 @@ class Solution():
         plus_shift_mat = np.zeros((self.power,self.power))
         minus_shift_mat = np.zeros((self.power,self.power))
         for i in range(self.power):
-            for j in range(i):
-                plus_shift_mat[i,j] = comb(i,j)*2**(-(i+j))*(-1)**j
-                minus_shift_mat[i,j] = comb(i,j)*2**(-(i+j))
-        
+            for j in range(i+1):
+                plus_shift_mat[i,j] = comb(i,j)*2**(-(i))
+                minus_shift_mat[i,j] = comb(i,j)*2**(-(i))*(-1)**(i+j)
+                # plus_shift_mat[i,j] = comb(i,j)*2**(-(i))
+                # minus_shift_mat[i,j] = comb(i,j)*2**(-(i))*(-1)**(i+j)
         inds = [list(range(size)) for size in self.dim_sizes]
-        old_cells = list(itertools.product(*inds))
-
+        old_cells_inds = list(itertools.product(*inds))
+        old_cells_coefs = copy.deepcopy(self.cells_coefs)
 
         self.dim_sizes[dimention] *= 2
         self.steps = ((self.area_lims[:,1] - self.area_lims[:,0]) / self.dim_sizes)
-        
-        new_cells_coefs = np.ones(self.cells_shape)
+        self.init_grid()
+        cell_index_adder = np.zeros(self.n_dims, int)
+        cell_index_adder[dimention] = 1
+        # new_cells_coefs = np.ones(self.cells_shape)
         
         for func in range(self.n_funcs):
-            for cell in old_cells:
-                new_cells_coefs[func, cell] = self.cell_coefs
-            for i in range(self.dim_sizes[dimention]):
-                pass 
+            for cell in old_cells_inds:
+                if dimention%2:
+                    fst_cell = tuple(2**cell_index_adder[i] * cell[i] for i in range(self.n_dims))
+                    self.cells_coefs[func][fst_cell] = np.tensordot(old_cells_coefs[func][cell], minus_shift_mat, axes=([dimention],[0]))
+                    sec_cell = tuple(2**cell_index_adder[i] * cell[i] + cell_index_adder[i] for i in range(self.n_dims))
+                    self.cells_coefs[func][sec_cell] = np.tensordot(old_cells_coefs[func][cell], plus_shift_mat, axes=([dimention],[0]))
+                else: #transpose if needed
+                    fst_cell = tuple(2**cell_index_adder[i] * cell[i] for i in range(self.n_dims))
+                    self.cells_coefs[func][fst_cell] = np.tensordot(minus_shift_mat,old_cells_coefs[func][cell], axes=([0],[dimention]))
+                    sec_cell = tuple(2**cell_index_adder[i] * cell[i] + cell_index_adder[i] for i in range(self.n_dims))
+                    self.cells_coefs[func][sec_cell] = np.tensordot(plus_shift_mat, old_cells_coefs[func][cell], axes=([0],[dimention]))
+
+            # for i in range(self.dim_sizes[dimention]):
+            #     pass 
             #TODO FINISH
 
         # self.cells_shape = tuple([self.n_funcs] + list(self.dim_sizes) + [self.power]*self.n_dims)
