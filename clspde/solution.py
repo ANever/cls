@@ -67,7 +67,7 @@ class Solution():
         self.precalculated_basis = False
 
     def precalculate_basis(self, points: np.ndarray, max_der: np.ndarray):
-        self.points = np.unique(points, axis=1)
+        self.points = list(np.unique(points, axis=1))
         self.basis_evaled = np.empty((len(points), max_der + 1,max_der + 1, self.n_dims, self.power))
         self.basis_evaled_raveled = np.empty((len(points), max_der + 1,max_der + 1, self.power**self.n_dims))
         for point_num in range(len(points)):
@@ -80,19 +80,7 @@ class Solution():
         self.precalculated_basis = True
 
     def point_num(self, point, threshold = 1e-3):
-        dif = self.points - point
-        print(dif)
-        # num = np.where((dif*dif < threshold))
-        num = np.where(((dif*dif).sum(axis=1) == 0))
-        print(num)
-        # b = np.where(np.isclose(self.points[:,1], point[1]))
-        # num = np.intersect1d(a,b, assume_unique=True, return_indices=False)
-        # if len(num)>1:
-        #     num = [self.point_num(point, threshold*0.1)]
-        # if num[0]:
-        return num[0]
-        # else:
-        #     raise ValueError
+        return np.where(self.points==point)[0][0]
 
     def init_grid(self) -> None:
         self.cells_shape = tuple([self.n_funcs] + list(self.dim_sizes) + [self.power]*self.n_dims)
@@ -162,8 +150,11 @@ class Solution():
         result = copy.deepcopy(coefs)
         #applying coefs tensor to evaled basis in point
         if self.precalculated_basis:
-            point_num = self.point_num(local_point)
-            basis_evaled = self.basis_evaled[point_num, derivatives[0],derivatives[1], 0]
+            try:
+                point_num = self.point_num(local_point)
+                basis_evaled = self.basis_evaled[point_num, derivatives[0],derivatives[1]]
+            except IndexError: #actually i forgot what error should be here
+                pass
         else:
             basis_evaled = self.basis.eval(local_point, derivatives, ravel=False)
         for b_e in basis_evaled[::-1]:
@@ -391,63 +382,35 @@ class Solution():
             else:
                 connect_mat = concat(connect_mat, connect_line)
             # connect_mat.append(connect_line) #???
-        return np.array(connect_mat)         
-    # def cell_division(self, dimention:int = 0):
-    #     plus_shift_mat = np.zeros((self.power,self.power))
-    #     minus_shift_mat = np.zeros((self.power,self.power))
-    #     for i in range(self.power):
-    #         for j in range(i):
-    #             plus_shift_mat[i,j] = comb(i,j)*2**(-(i+j))*(-1)**j
-    #             minus_shift_mat[i,j] = comb(i,j)*2**(-(i+j))
-        
-    #     inds = [list(range(size)) for size in self.dim_sizes]
-    #     old_cells = list(itertools.product(*inds))
+        return np.array(connect_mat)
 
-    #     self.dim_sizes[0] *= 2
-    #     self.steps = ((self.area_lims[:,1] - self.area_lims[:,0]) / self.dim_sizes)
+    def cell_division(self, dimention:int = 0):
+        plus_shift_mat = np.zeros((self.power,self.power))
+        minus_shift_mat = np.zeros((self.power,self.power))
+        for i in range(self.power):
+            for j in range(i):
+                plus_shift_mat[i,j] = comb(i,j)*2**(-(i+j))*(-1)**j
+                minus_shift_mat[i,j] = comb(i,j)*2**(-(i+j))
         
-    #     self.cells_coefs = np.ones(self.cells_shape) 
+        inds = [list(range(size)) for size in self.dim_sizes]
+        old_cells = list(itertools.product(*inds))
+
+
+        self.dim_sizes[dimention] *= 2
+        self.steps = ((self.area_lims[:,1] - self.area_lims[:,0]) / self.dim_sizes)
         
-    #     for func in range(self.n_funcs):
-    #         for cell in old_cells:
-    #             new_cell_coefs[func, cell] = self.cell_coefs
-    #         for i in range(self.dim_sizes[dimention]):
-    #             pass 
-    #         #TODO FINISH
-
-    #     self.cells_shape = tuple([self.n_funcs] + list(self.dim_sizes) + [self.power]*self.n_dims)
-    #     self.cells_coefs = new_cell_coefs
-    #     self.cell_size = self.n_funcs * (self.power**self.n_dims)        
-    #     # print(cell_num)
-
-       
-
-    # def cell_division(self, dimention:int = 0):
-    #     plus_shift_mat = np.zeros((self.power,self.power))
-    #     minus_shift_mat = np.zeros((self.power,self.power))
-    #     for i in range(self.power):
-    #         for j in range(i):
-    #             plus_shift_mat[i,j] = comb(i,j)*2**(-(i+j))*(-1)**j
-    #             minus_shift_mat[i,j] = comb(i,j)*2**(-(i+j))
+        new_cells_coefs = np.ones(self.cells_shape)
         
-    #     inds = [list(range(size)) for size in self.dim_sizes]
-    #     old_cells = list(itertools.product(*inds))
+        for func in range(self.n_funcs):
+            for cell in old_cells:
+                new_cells_coefs[func, cell] = self.cell_coefs
+            for i in range(self.dim_sizes[dimention]):
+                pass 
+            #TODO FINISH
 
-    #     self.dim_sizes[0] *= 2
-    #     self.steps = ((self.area_lims[:,1] - self.area_lims[:,0]) / self.dim_sizes)
-        
-    #     self.cells_coefs = np.ones(self.cells_shape) 
-        
-    #     for func in range(self.n_funcs):
-    #         for cell in old_cells:
-    #             new_cell_coefs[func, cell] = self.cell_coefs
-    #         for i in range(self.dim_sizes[dimention]):
-    #             pass 
-    #         #TODO FINISH
-
-    #     self.cells_shape = tuple([self.n_funcs] + list(self.dim_sizes) + [self.power]*self.n_dims)
-    #     self.cells_coefs = new_cell_coefs
-    #     self.cell_size = self.n_funcs * (self.power**self.n_dims)
+        # self.cells_shape = tuple([self.n_funcs] + list(self.dim_sizes) + [self.power]*self.n_dims)
+        # self.cells_coefs = new_cell_coefs
+        # self.cell_size = self.n_funcs * (self.power**self.n_dims)        
 
     def plot(self, n = 100):
         func = np.zeros(n)
@@ -506,12 +469,14 @@ class Solution():
             connect_left_operators = []
             connect_right_operators = []
             for func_num in range(self.n_funcs):
-                #func_num=func_num is carrying that is needed to distinguish labmdas
+                #func_num=func_num is carrying that is needed to distinguish lambdas
                 
                 connect_left_operators += [lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(0*dir(x_loc),func_num) + np.sum(dir(x_loc)) * u_bas(dir(x_loc),func_num) * w,
-                                           lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(2*dir(x_loc),func_num)* w**2 + np.sum(dir(x_loc)) * u_bas(3*dir(x_loc),func_num)* w**3]
+                                            lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(2*dir(x_loc),func_num)* w**2 + np.sum(dir(x_loc)) * u_bas(3*dir(x_loc),func_num)* w**3]
                 connect_right_operators += [lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(0*dir(x_loc),func_num) - np.sum(dir(x_loc))*u_bas(dir(x_loc),func_num)* w,
                                             lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(2*dir(x_loc),func_num) * w**2 - np.sum(dir(x_loc)) * u_bas(3*dir(x_loc),func_num)* w**3]
+
+                
                 '''
                 strong operators for equations with 4th derivative 
                 '''
@@ -542,7 +507,7 @@ class Solution():
 
         inds = [list(range(size)) for size in self.dim_sizes]
         all_cells = list(itertools.product(*inds))
-        cell_shape = tuple([self.power]*self.n_dims)
+        # cell_shape = tuple([self.power]*self.n_dims)
 
         num_of_collocs = len(colloc_points) * len(colloc_ops[0])
         num_of_eqs = len(all_cells) * num_of_collocs
