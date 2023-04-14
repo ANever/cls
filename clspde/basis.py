@@ -30,7 +30,10 @@ class Basis():
         result = np.zeros((self.n_dims, self.n))
         for i in range(self.n_dims):
             for n in range(self.n):
-                mult = self.precalculated_mults[i,n,derivative[i]]
+                try:
+                    mult = self.precalculated_mults[i,n,derivative[i]]
+                except IndexError:
+                    mult = 0
                 # print(x)
                 result[i, n] = x[i]**(max(n-derivative[i], 0)) * mult / ((self.steps[i]/2)**derivative[i])
         if ravel:
@@ -40,4 +43,3 @@ class Basis():
             return mat_result.ravel(order='C')
         else:
             return result
-            
