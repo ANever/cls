@@ -27,22 +27,6 @@ def f_collocation_points(N):
         points[i] = points[i-1] + h
     return np.array(points).reshape(N+1,1)
 
-
-# def comb(N,k): # from scipy.comb(), but MODIFIED!
-#     if (k > N) or (N < 0) or (k < 0):
-#         return 0
-#     N,k = map(long,(N,k))
-#     top = N
-#     val = 1
-#     while (top > (N-k)):
-#         val *= top
-#         top -= 1
-#     n = 1
-#     while (n < k+1):
-#         val /= n
-#         n += 1
-#     return val
-
 class Solution():
 
     def __init__(self, n_dims: int, dim_sizes: np.ndarray, area_lims: np.ndarray, power:int, basis: Basis, n_funcs:int = 1) -> None:
@@ -112,27 +96,38 @@ class Solution():
 
         self.split_mats_inited = True
 
-
-
-
-    #only for 2d use
-    def split_cells(self):
-        if not(self.split_mats_inited):
-            self.init_split_mats()
-        old_coefs = copy.deepcopy(self.cells_coefs)
+    def cell_division(self, dimention:int = 0):
+        plus_shift_mat = np.zeros((self.power,self.power))
+        minus_shift_mat = np.zeros((self.power,self.power))
+        for i in range(self.power):
+            for j in range(i+1):
+                plus_shift_mat[i,j] = comb(i,j)*2**(-(i))
+                minus_shift_mat[i,j] = comb(i,j)*2**(-(i))*(-1)**(i+j)
+                # plus_shift_mat[i,j] = comb(i,j)*2**(-(i))
+                # minus_shift_mat[i,j] = comb(i,j)*2**(-(i))*(-1)**(i+j)
         inds = [list(range(size)) for size in self.dim_sizes]
-        all_old_cells = list(itertools.product(*inds))
-        
-        self.dim_sizes = self.dim_sizes*2
+        old_cells_inds = list(itertools.product(*inds))
+        old_cells_coefs = copy.deepcopy(self.cells_coefs)
 
-        self.init_grid()
+        self.dim_sizes[dimention] *= 2
         self.steps = ((self.area_lims[:,1] - self.area_lims[:,0]) / self.dim_sizes)
+        self.init_grid()
+        cell_index_adder = np.zeros(self.n_dims, int)
+        cell_index_adder[dimention] = 1
+        # new_cells_coefs = np.ones(self.cells_shape)
         
-        for cell in all_old_cells:
-            sol.cells_coefs[tuple(cell+np.array([0,0]))] = np.transpose(self.minus_shift) @ old_coefs[cell] @ self.minus_shift
-            sol.cells_coefs[tuple(cell+np.array([1,0]))] = np.transpose(self.plus_shift) @ old_coefs[cell] @ self.minus_shift
-            sol.cells_coefs[tuple(cell+np.array([0,1]))] = np.transpose(self.minus_shift) @ old_coefs[cell] @ self.plus_shift
-            sol.cells_coefs[tuple(cell+np.array([1,1]))] = np.transpose(self.plus_shift) @ old_coefs[cell] @ self.plus_shift
+        for func in range(self.n_funcs):
+            for cell in old_cells_inds:
+                if dimention%2:
+                    fst_cell = tuple(2**cell_index_adder[i] * cell[i] for i in range(self.n_dims))
+                    self.cells_coefs[func][fst_cell] = np.tensordot(old_cells_coefs[func][cell], minus_shift_mat, axes=([dimention],[0]))
+                    sec_cell = tuple(2**cell_index_adder[i] * cell[i] + cell_index_adder[i] for i in range(self.n_dims))
+                    self.cells_coefs[func][sec_cell] = np.tensordot(old_cells_coefs[func][cell], plus_shift_mat, axes=([dimention],[0]))
+                else: #transpose if needed
+                    fst_cell = tuple(2**cell_index_adder[i] * cell[i] for i in range(self.n_dims))
+                    self.cells_coefs[func][fst_cell] = np.tensordot(minus_shift_mat,old_cells_coefs[func][cell], axes=([0],[dimention]))
+                    sec_cell = tuple(2**cell_index_adder[i] * cell[i] + cell_index_adder[i] for i in range(self.n_dims))
+                    self.cells_coefs[func][sec_cell] = np.tensordot(plus_shift_mat, old_cells_coefs[func][cell], axes=([0],[dimention])) 
 
     def eval(self, point: np.ndarray, derivatives: np.ndarray, func:int = 0, cell_num = None, local = False, cells_closed_right: bool = False):  #->float
         '''
@@ -278,10 +273,11 @@ class Solution():
                 cell_ind = cell_num[1] + cell_num[0] * self.dim_sizes[1]
                 full_line[cell_ind * num_of_vars:(cell_ind+1) * num_of_vars] = cell_line
         return full_line
+        #TODO
         #set time moment
         #iterate over space
         #set common line into cells
-
+        
 
     def generate_eq(self, cell_num, left_side_operator, right_side_operator, points):
         '''
@@ -350,32 +346,20 @@ class Solution():
             direction = (np.abs(point) == 1) * (np.sign(point))
             return np.array(direction, dtype=int)
 
-        func_num = 0 #IS IT OK???
-
-        # connect_mat = []
-        
         first = True
         for point in points:
             first_line, _ = self.generate_subsystem(left_ops[0], right_ops, cell_num, np.array([point]))
-            # print(cell_num, point, dir(point))
             neigh = tuple(np.array(cell_num) + dir(point))
             neigh_point = point - 2*dir(point)
             second_line, _ = self.generate_subsystem(left_ops[1], right_ops, neigh, np.array([neigh_point]))
 
             connect_line = np.zeros((len(left_ops[0]), np.prod(self.cells_coefs.shape)))
 
-            index = self.cell_index(cell_num) #cell_num[1] + cell_num[0] * self.dim_sizes[1] #np.prod(self.dim_sizes[0])
-            # neigh_index = neigh[0] + neigh[1] * np.prod(self.dim_sizes[:1])
-            neigh_index = self.cell_index(neigh) #neigh[1] + neigh[0] * self.dim_sizes[1] #np.prod(self.dim_sizes[1])
-            
+            index = self.cell_index(cell_num)
+            neigh_index = self.cell_index(neigh)
+
             connect_line[:, index*self.cell_size:(index+1)*self.cell_size] = first_line
             connect_line[:, neigh_index*self.cell_size:(neigh_index+1)*self.cell_size] = -second_line
-
-            # print('neigh and point', neigh, point, neigh_point)
-            # print(connect_line)
-            
-            #connect_line = np.array(connect_line)
-
             if first:
                 connect_mat = connect_line
                 first = False
@@ -383,47 +367,6 @@ class Solution():
                 connect_mat = concat(connect_mat, connect_line)
             # connect_mat.append(connect_line) #???
         return np.array(connect_mat)
-
-    def cell_division(self, dimention:int = 0):
-        plus_shift_mat = np.zeros((self.power,self.power))
-        minus_shift_mat = np.zeros((self.power,self.power))
-        for i in range(self.power):
-            for j in range(i+1):
-                plus_shift_mat[i,j] = comb(i,j)*2**(-(i))
-                minus_shift_mat[i,j] = comb(i,j)*2**(-(i))*(-1)**(i+j)
-                # plus_shift_mat[i,j] = comb(i,j)*2**(-(i))
-                # minus_shift_mat[i,j] = comb(i,j)*2**(-(i))*(-1)**(i+j)
-        inds = [list(range(size)) for size in self.dim_sizes]
-        old_cells_inds = list(itertools.product(*inds))
-        old_cells_coefs = copy.deepcopy(self.cells_coefs)
-
-        self.dim_sizes[dimention] *= 2
-        self.steps = ((self.area_lims[:,1] - self.area_lims[:,0]) / self.dim_sizes)
-        self.init_grid()
-        cell_index_adder = np.zeros(self.n_dims, int)
-        cell_index_adder[dimention] = 1
-        # new_cells_coefs = np.ones(self.cells_shape)
-        
-        for func in range(self.n_funcs):
-            for cell in old_cells_inds:
-                if dimention%2:
-                    fst_cell = tuple(2**cell_index_adder[i] * cell[i] for i in range(self.n_dims))
-                    self.cells_coefs[func][fst_cell] = np.tensordot(old_cells_coefs[func][cell], minus_shift_mat, axes=([dimention],[0]))
-                    sec_cell = tuple(2**cell_index_adder[i] * cell[i] + cell_index_adder[i] for i in range(self.n_dims))
-                    self.cells_coefs[func][sec_cell] = np.tensordot(old_cells_coefs[func][cell], plus_shift_mat, axes=([dimention],[0]))
-                else: #transpose if needed
-                    fst_cell = tuple(2**cell_index_adder[i] * cell[i] for i in range(self.n_dims))
-                    self.cells_coefs[func][fst_cell] = np.tensordot(minus_shift_mat,old_cells_coefs[func][cell], axes=([0],[dimention]))
-                    sec_cell = tuple(2**cell_index_adder[i] * cell[i] + cell_index_adder[i] for i in range(self.n_dims))
-                    self.cells_coefs[func][sec_cell] = np.tensordot(plus_shift_mat, old_cells_coefs[func][cell], axes=([0],[dimention]))
-
-            # for i in range(self.dim_sizes[dimention]):
-            #     pass 
-            #TODO FINISH
-
-        # self.cells_shape = tuple([self.n_funcs] + list(self.dim_sizes) + [self.power]*self.n_dims)
-        # self.cells_coefs = new_cell_coefs
-        # self.cell_size = self.n_funcs * (self.power**self.n_dims)        
 
     def plot(self, n = 100):
         func = np.zeros(n)
@@ -520,8 +463,7 @@ class Solution():
 
         inds = [list(range(size)) for size in self.dim_sizes]
         all_cells = list(itertools.product(*inds))
-        # cell_shape = tuple([self.power]*self.n_dims)
-
+        
         num_of_collocs = len(colloc_points) * len(colloc_ops[0])
         num_of_eqs = len(all_cells) * num_of_collocs
         num_of_cells = len(all_cells)
@@ -532,19 +474,13 @@ class Solution():
         num_of_border = len(border_points)* len(border_ops[0])
         num_of_eqs = len(all_cells)*num_of_border
 
-        # global_border_mat = np.zeros((num_of_eqs, len(all_cells) * np.prod(cell_shape)))
         global_border_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))
         global_border_right = np.zeros(num_of_eqs)
-        # print('glob bord', global_border_mat.shape)
-        # global_border_mat = np.array([])
-        # global_border_right = []
-
+        
         num_of_connect = len(connect_points)* len(connect_ops)
         num_of_eqs = len(all_cells)*num_of_connect
         
-        # global_connect_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))
         global_connect_mat = []
-
         global_connect_right = np.zeros(num_of_eqs)
         
         colloc_left_operators, colloc_right_operators = colloc_ops
@@ -555,7 +491,6 @@ class Solution():
         for cell_num in all_cells:
             left_borders = cell_num == np.zeros(self.n_dims)
             right_borders = cell_num == (self.dim_sizes-1)
-            
             left_border_for_use = np.array([np.logical_and(point == -1, left_borders).any() for point in border_points])
             right_border_for_use = np.array([np.logical_and(point == 1, right_borders).any() for point in border_points])
             border_points_for_use = border_points[np.logical_or(left_border_for_use, right_border_for_use)]
@@ -566,23 +501,9 @@ class Solution():
             #for 2d only!
             # cell_ind = cell_num[0] + cell_num[1] * self.dim_sizes[0] # + cell_num[2] * prod(self.dim_sizes[:2]...
             cell_ind = self.cell_index(cell_num)
-
-            # global_border_mat.append(border_mat)
-            # global_border_right.append(border_r)
-
             global_colloc_mat[cell_ind * num_of_collocs:(cell_ind+1) * num_of_collocs, cell_ind * num_of_vars:(cell_ind+1) * num_of_vars] = colloc_mat
             global_colloc_right[cell_ind * num_of_collocs:(cell_ind+1) * num_of_collocs] = colloc_r
-
-            # num_of_border = len(border_points_for_use)
-            # global_border_mat = concat(global_border_mat, border_)
-            # print(border_mat.shape)
-            #
-            #  global_border_mat.append(border_mat)
             
-            # global_border_mat = concat(global_border_mat, border_mat)
-            # concat(global_border_mat, border_mat)
-            # global_border_right.append(border_r)
-
             num_of_border = border_mat.shape[0]
             global_border_mat[cell_ind * num_of_border:(cell_ind+1) * num_of_border, cell_ind * num_of_vars:(cell_ind+1) * num_of_vars] = border_mat
             global_border_right[cell_ind * num_of_border:(cell_ind+1) * num_of_border] = border_r
@@ -590,60 +511,21 @@ class Solution():
             left_connect_for_use = np.array([np.logical_and(point == -1, ~left_borders).any() for point in connect_points])
             right_connect_for_use = np.array([np.logical_and(point == 1, ~right_borders).any() for point in connect_points])
             connect_points_for_use = connect_points[np.logical_or(left_connect_for_use, right_connect_for_use)]
-
-            # print('connect_points', connect_points_for_use)
-            # connect_points_for_use = connect_points[right_connect_for_use] 
-            # print('border', border_points_for_use, '\n connect', connect_points_for_use)
-        
             connect_mat = self.generate_connection_couple([connect_left_operators, connect_right_operators], cell_num, connect_points_for_use)
-            connect_weight = 1
-            # num_of_connect = connect_mat.shape[0]
-            # global_connect_mat[cell_ind * num_of_connect:(cell_ind+1) * num_of_connect, cell_ind * num_of_vars:(cell_ind+1) * num_of_vars] = connect_mat
             if first_connect:
-                # print('initing')
                 global_connect_mat = connect_mat
                 first_connect = False
             else:
-                # print('concating')
                 global_connect_mat = concat(global_connect_mat, connect_mat)
-            # print('concat_len', (global_connect_mat.shape))
-            # print(global_connect_mat)
-            # global_connect_mat.append(connect_mat)
-            # print(connect_mat, connect_mat.shape)
-        
-
         global_connect_mat = np.array(global_connect_mat)
         global_connect_right = np.zeros(len(global_connect_mat))
 
-            # global_connect_right = connect_r
-        # print('colloc ', colloc_mat,'\nborder ', border_mat,'\nconnect ', connect_mat)
-        # res_mat = concat(concat(colloc_mat, border_mat), connect_mat * connect_weight)
-        # res_right = concat(concat(colloc_r, border_r), connect_r * connect_weight)
-
-        # connect_weight = 1
-        # print('COLLOCS \n',global_colloc_mat)
-        # print('BORDER \n', global_border_mat)
-        # print('CONNECTS \n')
-        # print(global_connect_mat)
-        # print(global_colloc_right.shape, global_connect_right.shape, global_border_right.shape)
-        # global_integral_mat = np.array([self.generate_integral(0)])
-        # global_integral_right = np.array([1])
-        # for time in range(1, self.dim_sizes[0]):
-        #     integral_line = np.array([self.generate_integral(time)])
-        #     global_integral_mat = concat(global_integral_mat, integral_line)
-
-        #     global_integral_right = concat(global_integral_right, np.array([1]))
-        
-        # res_mat = concat(concat(concat(global_colloc_mat, global_border_mat), global_connect_mat * connect_weight), global_integral_mat)
-        # res_right = concat(concat(concat(global_colloc_right, global_border_right), global_connect_right * connect_weight), global_integral_right)
-
-        res_mat = concat(concat(global_colloc_mat, global_border_mat), global_connect_mat * connect_weight)
-        res_right = concat(concat(global_colloc_right, global_border_right), global_connect_right * connect_weight)
+        res_mat = concat(concat(global_colloc_mat, global_border_mat), global_connect_mat)
+        res_right = concat(concat(global_colloc_right, global_border_right), global_connect_right)
 
         notnull_ind = np.sum(res_mat != 0, axis=1)!=0
         res_mat = res_mat[notnull_ind]
         res_right = res_right[notnull_ind]
-        # print(res_mat,'\n-------\n', res_right, '\n\n')
         return res_mat, res_right
 
     def global_solve(self, solver = 'np',return_system = False, calculate = True, svd_threshold = 1e-4, verbose = False, alpha=0,  **kwargs):
