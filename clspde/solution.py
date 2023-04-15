@@ -50,7 +50,12 @@ class Solution():
         self.split_mats_inited = False
         self.precalculated_basis = False
 
-    def precalculate_basis(self, points: np.ndarray, max_der: np.ndarray):
+    def init_grid(self) -> None:
+        self.cells_shape = tuple([self.n_funcs] + list(self.dim_sizes) + [self.power]*self.n_dims)
+        self.cells_coefs = np.zeros(self.cells_shape)
+        self.cell_size = self.n_funcs * (self.power**self.n_dims)
+
+    def precalculate_basis(self, points: np.ndarray, max_der: np.ndarray) -> None:
         self.points = list(np.unique(points, axis=1))
         self.basis_evaled = np.empty((len(points), max_der + 1,max_der + 1, self.n_dims, self.power))
         self.basis_evaled_raveled = np.empty((len(points), max_der + 1,max_der + 1, self.power**self.n_dims))
@@ -65,11 +70,6 @@ class Solution():
 
     def point_num(self, point, threshold = 1e-3):
         return np.where(self.points==point)[0][0]
-
-    def init_grid(self) -> None:
-        self.cells_shape = tuple([self.n_funcs] + list(self.dim_sizes) + [self.power]*self.n_dims)
-        self.cells_coefs = np.ones(self.cells_shape) * 0.4
-        self.cell_size = self.n_funcs * (self.power**self.n_dims)
         
     def localize(self, global_point: np.ndarray, cells_closed_right: bool = False) -> np.ndarray:
         if cells_closed_right:
@@ -103,8 +103,6 @@ class Solution():
             for j in range(i+1):
                 plus_shift_mat[i,j] = comb(i,j)*2**(-(i))
                 minus_shift_mat[i,j] = comb(i,j)*2**(-(i))*(-1)**(i+j)
-                # plus_shift_mat[i,j] = comb(i,j)*2**(-(i))
-                # minus_shift_mat[i,j] = comb(i,j)*2**(-(i))*(-1)**(i+j)
         inds = [list(range(size)) for size in self.dim_sizes]
         old_cells_inds = list(itertools.product(*inds))
         old_cells_coefs = copy.deepcopy(self.cells_coefs)
@@ -114,7 +112,6 @@ class Solution():
         self.init_grid()
         cell_index_adder = np.zeros(self.n_dims, int)
         cell_index_adder[dimention] = 1
-        # new_cells_coefs = np.ones(self.cells_shape)
         
         for func in range(self.n_funcs):
             for cell in old_cells_inds:
@@ -128,6 +125,23 @@ class Solution():
                     self.cells_coefs[func][fst_cell] = np.tensordot(minus_shift_mat,old_cells_coefs[func][cell], axes=([0],[dimention]))
                     sec_cell = tuple(2**cell_index_adder[i] * cell[i] + cell_index_adder[i] for i in range(self.n_dims))
                     self.cells_coefs[func][sec_cell] = np.tensordot(plus_shift_mat, old_cells_coefs[func][cell], axes=([0],[dimention])) 
+
+    def powerup(self):
+        rows=np.array(range(self.power))
+        columns = rows
+
+        self.power+=1
+        old_cell_coefs = copy.deepcopy(self.cells_coefs)
+        self.init_grid()
+        self.Basis=Basis(self.power, steps=self.steps, n_dims = self.n_dims)
+
+        inds = [list(range(size)) for size in self.dim_sizes]
+        old_cells_inds = list(itertools.product(*inds))
+
+        for func in range(self.n_funcs):
+            for cell in old_cells_inds:
+                self.cells_coefs[func][cell][rows[:,np.newaxis],columns] = old_cell_coefs[func][cell]
+
 
     def eval(self, point: np.ndarray, derivatives: np.ndarray, func:int = 0, cell_num = None, local = False, cells_closed_right: bool = False):  #->float
         '''
@@ -147,7 +161,7 @@ class Solution():
         if self.precalculated_basis:
             try:
                 point_num = self.point_num(local_point)
-                basis_evaled = self.basis_evaled[point_num, derivatives[0],derivatives[1]]
+                basis_evaled = self.basis_evaled[point_num][tuple(derivatives)]
             except IndexError: #actually i forgot what error should be here
                 pass
         else:
