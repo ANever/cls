@@ -8,7 +8,6 @@ from math import comb
 from .basis import Basis
 from .qr_solver import QR_solve, SVD_solve
 
-
 def concat(a:np.ndarray, b:np.ndarray):
     a = np.array(a)
     b = np.array(b)
