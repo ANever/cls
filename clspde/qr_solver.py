@@ -103,6 +103,9 @@ def qr_gs_modsr(A, type=np.float32):
     return -Q, -R  # Return the resultant negative matrices Q and R 
 
 
+
+
+#testing part
 if (__name__ == '__main__'):
     
     A = np.array([[1,0,1],[0,1,1],[3,1,4], [1,1,4]])

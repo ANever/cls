@@ -1,10 +1,17 @@
 import numpy as np
 
 class Basis():
-    '''
-    class of basis functions for decomposition of solution
-    '''
+    """
+    class of basis functions for solution decomposition
+    """
     def __init__(self, num_of_elems: int, type: str = 'poly', steps = np.array([]), n_dims: int = 1):
+        """
+        Args:
+            num_of_elems: the amount of elements in basis
+            type: name of basis (practicaly not used)
+            steps: dimention sizes of cells, used for evaluation of derivatives
+            n_dims: the amount of space dimentons (e.g. x,y,z,t)
+        """
         self.type = type
         self.n = num_of_elems
         self.n_dims = n_dims
@@ -20,8 +27,11 @@ class Basis():
                     self.precalculated_mults[i,n,der] = np.prod(list(range(max(n+1-der,0), n+1)))
 
     def eval(self, x, derivative = np.array([]), ravel = False):
-        '''
-        evaluation of n-th basis funcion in x
+        '''evaluates of n-th basis funcion in x
+        Args:
+            x: point to evaluate basis in
+            derivative: derivative of basis
+            revel: whether to return basis as vector or not(as tensor)
         '''
         derivative = np.array(np.abs(derivative), dtype=int)
         if derivative.size == 0:

@@ -27,15 +27,22 @@ def f_collocation_points(N):
     return np.array(points).reshape(N+1,1)
 
 class Solution():
+    """ Solution of pde system
+
+    Main class, that creates linear system of equations from pde and solves it
+
+    Attributes:
+        n_dims: amount of arguments of solution funciton
+        dim_sizes: amount of cells in every direction (cell grid is square)
+        area_lims: list of limitis of area in every dimention
+        power: number of basis elements for every dimention
+        basis: basis class to create basis elements
+        n_funcs: amount of solution funtions
+
+        cells_coefs: coefs of solution decomposition, must be addresed as [func_num, cell_addres, x1_power, x2_power..., xn_power]
+    """
 
     def __init__(self, n_dims: int, dim_sizes: np.ndarray, area_lims: np.ndarray, power:int, basis: Basis, n_funcs:int = 1) -> None:
-        '''
-        initiation of solution
-        init of grid of cells, initial coefs, basis
-        area_lims - np.array of shape (n_dims, 2) - pairs of upper and lower limits of corresponding dim
-        dim_sizes - np. array of shape (n_dims)
-        '''
-
         self.area_lims = np.array(area_lims)
         self.n_dims = n_dims # = len(dim_sizes)
         self.dim_sizes = np.array(dim_sizes) # n of steps for all directions 
@@ -68,9 +75,13 @@ class Solution():
         self.precalculated_basis = True
 
     def point_num(self, point, threshold = 1e-3):
+        """returns point addres in precalculated basis
+        """
         return np.where(self.points==point)[0][0]
         
     def localize(self, global_point: np.ndarray, cells_closed_right: bool = False) -> np.ndarray:
+        """returns cell addres and local coordinates in this cell of a globall coordinates
+        """
         if cells_closed_right:
             shift = np.array(((global_point - self.area_lims[:,0]) % self.steps) < 1e-12, dtype=int)
             cell_num = np.array(np.floor((global_point - self.area_lims[:,0]) / self.steps) - shift, dtype=int)
@@ -82,10 +93,14 @@ class Solution():
         return np.array([cell_num, local_point])
 
     def globalize(self, cell_num: np.ndarray, local_point: np.ndarray) -> np.ndarray:
-        global_point = self.area_lims[:,0] + (np.array(local_point) + 2*np.array(cell_num) + 1) * self.steps/2
+        """returns globall coordinates of a point from its cell adress and local coordinates
+        """
+        global_point = self.area_lims[:,0] + ((np.array(local_point) + 1) + 2*np.array(cell_num)) * self.steps/2
         return global_point
 
     def init_split_mats(self):
+        """creates matrices for cell division
+        """
         self.minus_shift = np.zeros([self.power, self.power])
         self.plus_shift = np.zeros([self.power, self.power])
         for i in range(self.power):
@@ -96,6 +111,8 @@ class Solution():
         self.split_mats_inited = True
 
     def cell_division(self, dimention:int = 0):
+        """divides cells in half in certain dimention with saving of solution
+        """
         plus_shift_mat = np.zeros((self.power,self.power))
         minus_shift_mat = np.zeros((self.power,self.power))
         for i in range(self.power):
@@ -126,13 +143,16 @@ class Solution():
                     self.cells_coefs[func][sec_cell] = np.tensordot(plus_shift_mat, old_cells_coefs[func][cell], axes=([0],[dimention])) 
 
     def powerup(self):
+        """raises power(amount of basis elements) of solution without change in it
+        """
         rows=np.array(range(self.power))
         columns = rows
 
-        self.power+=1
+        self.power = self.power + 1
         old_cell_coefs = copy.deepcopy(self.cells_coefs)
         self.init_grid()
-        self.Basis=Basis(self.power, steps=self.steps, n_dims = self.n_dims)
+
+        self.Basis=Basis(self.power + 1, steps=self.steps, n_dims = self.n_dims)
 
         inds = [list(range(size)) for size in self.dim_sizes]
         old_cells_inds = list(itertools.product(*inds))
@@ -143,10 +163,14 @@ class Solution():
 
 
     def eval(self, point: np.ndarray, derivatives: np.ndarray, func:int = 0, cell_num = None, local = False, cells_closed_right: bool = False):  #->float
-        '''
-        x - np.array(n_dim, float)
-        derivatives - np.array(n_dim, int)
-        evaluation of solution function with argument x and list of partial derivatives
+        '''evaluation of solution function with argument x and list of partial derivatives
+        
+        Args:
+            x: point to evaluate solution in, np.array(n_dim, float)
+            derivatives: list of derivatives to take before evalution, np.array(n_dim, int)
+            func: number of a solution function to evaluate
+            local: whether x is local or not
+            cell_num: cell addres of a local x
         '''
         derivatives = np.abs(derivatives)
         
@@ -183,15 +207,6 @@ class Solution():
             connect_right_operators = []
             for func_num in range(self.n_funcs):
                 # func_num=func_num is carrying that is needed to distinguish labmdas
-                '''
-                strong operators for diffrential eqs with 4th derivative
-                # connect_left_operators += [lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(0*dir(x_loc),func_num) + np.sum(dir(x_loc)) * u_bas(dir(x_loc),func_num) * w,
-                #                     lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(2*dir(x_loc),func_num)* w**2 + np.sum(dir(x_loc)) * u_bas(3*dir(x_loc),func_num)* w**3]
-                # connect_right_operators += [lambda _, u_nei, x, x_loc, func_num=func_num: u_nei(0*dir(x_loc),func_num) + np.sum(dir(x_loc))*u_nei(dir(x_loc),func_num)* w,
-                #                             lambda _, u_nei, x, x_loc, func_num=func_num: u_nei(2*dir(x_loc),func_num) * w**2 + np.sum(dir(x_loc)) * u_nei(3*dir(x_loc),func_num)* w**3]
-                '''
-                # connect_left_operators += [lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(0*dir(x_loc),func_num) + np.sum(dir(x_loc)) * u_bas(dir(x_loc),func_num) * w,]
-                # connect_right_operators += [lambda _, u_nei, x, x_loc, func_num=func_num: u_nei(0*dir(x_loc),func_num) + np.sum(dir(x_loc))*u_nei(dir(x_loc),func_num)* w,]
                 connect_left_operators += [lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(0*dir(x_loc),func_num) + np.sum(dir(x_loc)) * u_bas(dir(x_loc),func_num) * w,
                                            lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(2*dir(x_loc),func_num)* w**2 + np.sum(dir(x_loc)) * u_bas(3*dir(x_loc),func_num)* w**3]
                 connect_right_operators += [lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(0*dir(x_loc),func_num) + np.sum(dir(x_loc))*u_bas(dir(x_loc),func_num)* w,
@@ -226,12 +241,25 @@ class Solution():
         
         connect_mat, connect_r = self.generate_subsystem(connect_left_operators, connect_right_operators, cell_num, connect_points_for_use)
         connect_weight = 1
+
+        # print('normalized')
+        # def normalize(mat, r):
+        #     coef = np.mean(mat[mat!=0])
+        #     mat /= coef
+        #     r /= coef
+        #     return mat, r
+        
+        # for (mat, r) in zip([colloc_mat, connect_mat, border_mat],[colloc_r, connect_r, border_r]):
+        #     mat ,r = normalize(mat, r)
+
         res_mat = concat(concat(colloc_mat, border_mat), connect_mat * connect_weight)
         res_right = concat(concat(colloc_r, border_r), connect_r * connect_weight)
 
         return res_mat, res_right
 
     def iterate_cells(self, solver='np', **kwargs) -> None:
+        """solves local system of equations for every cell once
+        """
         inds = [list(range(size)) for size in self.dim_sizes]
         all_cells = list(itertools.product(*inds))
         cell_shape = tuple([self.power]*self.n_dims)
@@ -244,6 +272,7 @@ class Solution():
 
 
     def _solver(self, A, b, solver = 'np', svd_threshold = 1e-5, verbose = False):
+        """solves system Ax=b with chosen solver"""
         if solver == 'QR':
             res = QR_solve(A,b)
         elif solver == 'np':
@@ -257,6 +286,9 @@ class Solution():
         return res
 
     def solve(self, threshold = 1e-5, max_iter = 10000, verbose=False, **kwargs) -> None:
+        """solves set problem with iterative solution of local systems in every cell 
+        untill convergence
+        """
         prev_coefs = copy.deepcopy(self.cells_coefs)
         for i in range(max_iter):
             self.iterate_cells(**kwargs)
@@ -270,6 +302,8 @@ class Solution():
             print('Iterations to converge: ', i)
 
     def generate_integral(self, time):
+        """TODO not implemented yet, for integral conditions
+        """
         #generate common line
         n = self.power
         integral_cell = 1/np.array(range(1,n+1)) * ([2, 0]*int(np.ceil(n/2)))[:n]
@@ -293,8 +327,7 @@ class Solution():
         
 
     def generate_eq(self, cell_num, left_side_operator, right_side_operator, points):
-        '''
-        basic func for generating equation
+        '''basic func for generating equation from leftside and rightside operators
         '''
         def left_side(operator, cell_num, point: np.ndarray) -> np.ndarray:
             '''must return row of coeficient for LSE'''
@@ -327,7 +360,7 @@ class Solution():
                 return direction
 
             global_point = self.globalize(cell_num, point)
-            x = global_point
+            # x = global_point
             loc_point = copy.deepcopy(point)            
             u_loc = lambda der, func_num=0: self.eval(loc_point, der, local = True, cell_num = cell_num, func=func_num)   # for linearization purpses
 
@@ -444,26 +477,6 @@ class Solution():
                                             lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(2*dir(x_loc),func_num)* w**2 + np.sum(dir(x_loc)) * u_bas(3*dir(x_loc),func_num)* w**3]
                 connect_right_operators += [lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(0*dir(x_loc),func_num) - np.sum(dir(x_loc))*u_bas(dir(x_loc),func_num)* w,
                                             lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(2*dir(x_loc),func_num) * w**2 - np.sum(dir(x_loc)) * u_bas(3*dir(x_loc),func_num)* w**3]
-
-                
-                '''
-                strong operators for equations with 4th derivative 
-                '''
-                # connect_left_operators += [lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(0*dir(x_loc),func_num) + np.sum(dir(x_loc)) * u_bas(dir(x_loc),func_num) * w,]
-                # connect_right_operators += [lambda _, u_bas, x, x_loc, func_num=func_num: u_bas(0*dir(x_loc),func_num) - np.sum(dir(x_loc))*u_bas(dir(x_loc),func_num)* w,]
-                
-                # loc_point = [1,0.5]
-                # def u_bas(der,func=0):
-                #     bas_size = int(self.cell_size/self.n_funcs)
-                #     result = np.zeros(self.n_funcs * bas_size)
-                #     result[func*bas_size:(func+1)*bas_size] = self.basis.eval(loc_point, der, ravel=True)
-                #     return result
-            
-            # connect_left_operators = [lambda _, u_bas, x, x_loc: u_bas(0*dir(x_loc),func_num) + np.sum(dir(x_loc)) * u_bas(dir(x_loc),func_num) * w for func_num in range(self.n_funcs)]+\
-            #                         [lambda _, u_bas, x, x_loc: u_bas(2*dir(x_loc),func_num)* w**2 + np.sum(dir(x_loc)) * u_bas(3*dir(x_loc),func_num)* w**3 for func_num in range(self.n_funcs)]
-            # connect_right_operators += [lambda _, u_nei, x, x_loc: u_nei(0*dir(x_loc),func_num) + np.sum(dir(x_loc))*u_nei(dir(x_loc),func_num)* w for func_num in range(self.n_funcs)]+\
-            #                                 [lambda _, u_nei, x, x_loc: u_nei(2*dir(x_loc),func_num) * w**2 + np.sum(dir(x_loc)) * u_nei(3*dir(x_loc),func_num)* w**3 for func_num in range(self.n_funcs)]
-
             connect_ops = [connect_left_operators, connect_right_operators]
 
         #default colloc points
@@ -505,6 +518,7 @@ class Solution():
             left_borders = cell_num == np.zeros(self.n_dims)
             right_borders = cell_num == (self.dim_sizes-1)
             left_border_for_use = np.array([np.logical_and(point == -1, left_borders).any() for point in border_points])
+            
             right_border_for_use = np.array([np.logical_and(point == 1, right_borders).any() for point in border_points])
             border_points_for_use = border_points[np.logical_or(left_border_for_use, right_border_for_use)]
 
@@ -524,6 +538,7 @@ class Solution():
             left_connect_for_use = np.array([np.logical_and(point == -1, ~left_borders).any() for point in connect_points])
             right_connect_for_use = np.array([np.logical_and(point == 1, ~right_borders).any() for point in connect_points])
             connect_points_for_use = connect_points[np.logical_or(left_connect_for_use, right_connect_for_use)]
+            
             connect_mat = self.generate_connection_couple([connect_left_operators, connect_right_operators], cell_num, connect_points_for_use)
             if first_connect:
                 global_connect_mat = connect_mat
@@ -532,6 +547,15 @@ class Solution():
                 global_connect_mat = concat(global_connect_mat, connect_mat)
         global_connect_mat = np.array(global_connect_mat)
         global_connect_right = np.zeros(len(global_connect_mat))
+
+        # def normalize(mat, r):
+        #     coef = np.max(np.abs(mat[mat!=0]))
+        #     mat /= coef
+        #     r /= coef
+        #     return mat, r
+        
+        # for (mat, r) in zip([global_colloc_mat, global_connect_mat, global_border_mat],[global_colloc_right, global_connect_right, global_border_right]):
+        #     mat ,r = normalize(mat, r)
 
         res_mat = concat(concat(global_colloc_mat, global_border_mat), global_connect_mat)
         res_right = concat(concat(global_colloc_right, global_border_right), global_connect_right)
