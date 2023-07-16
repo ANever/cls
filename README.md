@@ -1,8 +1,3 @@
-<script
-  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
-  type="text/javascript">
-</script>
-
 # CLSPDE
 
 Collocation least squares method library for solving PDE systems.
@@ -50,10 +45,10 @@ colloc_right_operators = [lambda u_loc, u_nei, x, x_loc: (0) * w**2*colloc_weigh
 colloc_ops = [colloc_left_operators, colloc_right_operators]
 ```
 what is equivalent to 
-$$ \frac{\patrial}{\partial t} u_1 -\varepsilon \frac{\patrial^2}{\partial x^2} u_1 - div (u_1 \nabla \hat{u_2}) = 0 $$
-where $ \hat{u} $ is considered known from previous iteration (initially is 0).
+$$\frac{\partial}{\partial t} u_1 -\varepsilon \frac{\partial^2}{\partial x^2} u_1 - div (u_1 \nabla \hat{u_2}) = 0 $$
+where $\hat{u}$ is known from previous iteration (initially is 0).
 
-u_loc(derivatives, func_number) - funcitons(x,x_loc), evaluates u from previois iteration, returns scalar
+u_loc(derivatives, func_number) - funcitons(x,x_loc), evaluates $u$ from previois iteration, returns scalar
 u_bas(derivatives, func_number) - funcitons(x,x_loc), evaluates basis vector, returns vector
 u_nei(deribatives, func_number) - funcitons(x,x_loc), evaluates in neighbouring cell (used in connection equations), returns scalar. Acts as u_loc for iterative solve and as u_bas for global solve.
 x - global point coordinates to evaluate in
