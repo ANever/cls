@@ -447,7 +447,7 @@ class Solution():
     def generate_connection_couple(self, left_ops, cell_num, points: np.ndarray) -> tuple:
         # left ops must be a pair of functions
         # right ops substitude
-        right_ops = [lambda u, _, x, x_loc: 0] * len(left_ops[0])   
+        right_ops = [lambda u, _, x, x_loc: 0] * len(left_ops[0])
         def dir(point: np.ndarray) -> np.ndarray:
             direction = (np.abs(point) == 1) * (np.sign(point))
             return np.array(direction, dtype=int)
@@ -510,7 +510,7 @@ class Solution():
 
     def cell_index(self, cell_num):
         if self.n_dims == 2:
-                cell_ind = cell_num[1] + cell_num[0] * self.dim_sizes[1] # + cell_num[2] * prod(self.dim_sizes[:2]...
+            cell_ind = cell_num[0] + cell_num[1] * self.dim_sizes[0] # + cell_num[2] * prod(self.dim_sizes[:2]...
         elif self.n_dims == 1:
             cell_ind = cell_num[0]
         else:
@@ -594,9 +594,9 @@ class Solution():
             global_colloc_mat[cell_ind * num_of_collocs:(cell_ind+1) * num_of_collocs, cell_ind * num_of_vars:(cell_ind+1) * num_of_vars] = colloc_mat
             global_colloc_right[cell_ind * num_of_collocs:(cell_ind+1) * num_of_collocs] = colloc_r
             
-            num_of_border = border_mat.shape[0]
-            global_border_mat[cell_ind * num_of_border:(cell_ind+1) * num_of_border, cell_ind * num_of_vars:(cell_ind+1) * num_of_vars] = border_mat
-            global_border_right[cell_ind * num_of_border:(cell_ind+1) * num_of_border] = border_r
+            num_of_border_to_use = border_mat.shape[0]
+            global_border_mat[cell_ind * num_of_border:cell_ind * num_of_border + num_of_border_to_use, cell_ind * num_of_vars:(cell_ind+1) * num_of_vars] = border_mat
+            global_border_right[cell_ind * num_of_border:cell_ind * num_of_border + num_of_border_to_use] = border_r
 
             left_connect_for_use = np.array([np.logical_and(point == -1, ~left_borders).any() for point in connect_points])
             right_connect_for_use = np.array([np.logical_and(point == 1, ~right_borders).any() for point in connect_points])
@@ -626,6 +626,7 @@ class Solution():
         notnull_ind = np.sum(res_mat != 0, axis=1)!=0
         res_mat = res_mat[notnull_ind]
         res_right = res_right[notnull_ind]
+
         return res_mat, res_right
 
     def global_solve(self, solver = 'np',return_system = False, calculate = True, svd_threshold = 1e-4, verbose = False, alpha=0,  **kwargs):
