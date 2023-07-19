@@ -4,9 +4,60 @@ import itertools
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from math import comb
+import re
 
 from .basis import Basis
 from .qr_solver import QR_solve, SVD_solve
+
+def lp(line, function_list, variable_list):
+    splited = line.split(' ')
+
+    ops_stack = []
+
+    def is_der_operator(string: str):
+        if re.findall('\(d\/d..?\)', string):
+            return True
+        else:
+            return False
+        
+    def apply_ops(ops_stack: list, func: str):
+        dif_powers = [0]*len(variable_list)
+        for op in ops_stack:
+            op = op.replace('(d/d', '')
+            op = op.replace(')', '')
+            op = op.split('^')
+
+            var_index = variable_list.index(op[0])
+            try:
+                power = op[1]
+            except:
+                power = 1
+            dif_powers[var_index] = int(power)
+        if func[0]=='&':
+            f_name = 'u_loc'
+        else:
+            f_name = 'u_bas'
+        func_index = function_list.index(func.replace('&',''))
+        return (f_name+'('+str(dif_powers)+', '+str(func_index)+')')
+
+    def is_func(string:str):
+        if string[0]=='&' and (string[1:] in function_list):
+            return (True, 'local')
+        if string in function_list:
+            return (True, 'basis')
+        else:
+            return (False, None)
+
+    res = ''
+    for i in range(len(splited)):
+        if is_der_operator(splited[i]):
+            ops_stack.append(splited[i])
+        elif is_func(splited[i])[0]:
+            res += (apply_ops(ops_stack, splited[i],))
+            ops_stack = []
+        else:
+            res += splited[i]
+    return lambda u_loc, u_bas, x, x_loc: eval(res)
 
 def concat(a:np.ndarray, b:np.ndarray):
     a = np.array(a)
@@ -193,7 +244,14 @@ class Solution():
             result = result.dot(b_e)
         return result
 
-    def generate_system(self, cell_num: np.ndarray, points: np.ndarray, colloc_ops, border_ops, connect_ops = []) -> tuple:
+    def prepare_ops(self, list_of_ops, function_list, variable_list):
+        for i in range(len(list_of_ops)):
+            op = list_of_ops[i]
+            if isinstance(op, str):
+                list_of_ops[i] = lp(op, function_list, variable_list)
+
+    def generate_system(self, cell_num: np.ndarray, points: np.ndarray, colloc_ops, border_ops, connect_ops = [],
+                        function_list = ['u', 'v'], variable_list=['x','y']) -> tuple:
         colloc_points, connect_points, border_points = points
 
         def dir(point: np.ndarray) -> np.ndarray:
@@ -223,6 +281,9 @@ class Solution():
         colloc_left_operators, colloc_right_operators = colloc_ops
 
         border_left_operators, border_right_operators = border_ops
+
+        for ops in [connect_left_operators, connect_right_operators, colloc_left_operators, colloc_right_operators, border_left_operators, border_right_operators]:
+            self.prepare_ops(ops, function_list, variable_list)
 
         colloc_mat, colloc_r = self.generate_subsystem(colloc_left_operators, colloc_right_operators, cell_num, colloc_points)
         
@@ -269,7 +330,6 @@ class Solution():
             solution = self._solver(A = mat, b = right, solver=solver)
             for i in range(self.n_funcs):
                 self.cells_coefs[(i,*cell)] = solution[i*cell_size:(i+1)*cell_size].reshape(cell_shape)
-
 
     def _solver(self, A, b, solver = 'np', svd_threshold = 1e-5, verbose = False):
         """solves system Ax=b with chosen solver"""
@@ -457,8 +517,9 @@ class Solution():
             raise LookupError
         return cell_ind
 
-    def generate_global_system(self, points: np.ndarray, colloc_ops, border_ops, connect_ops = [], connect_weight=1) -> tuple:
-
+    def generate_global_system(self, points: np.ndarray, colloc_ops, border_ops, connect_ops = [], connect_weight=1, 
+                               function_list = ['u', 'v'], variable_list=['x','y']) -> tuple:
+        
         colloc_points, connect_points, border_points = points
 
         def dir(point: np.ndarray) -> np.ndarray:
@@ -512,6 +573,8 @@ class Solution():
         colloc_left_operators, colloc_right_operators = colloc_ops
         border_left_operators, border_right_operators = border_ops
 
+        for ops in [connect_left_operators, connect_right_operators, colloc_left_operators, colloc_right_operators, border_left_operators, border_right_operators]:
+            self.prepare_ops(ops, function_list, variable_list)
 
         first_connect = True
         for cell_num in all_cells:
@@ -588,7 +651,7 @@ class Solution():
                     self.cells_coefs[(i,*cell)] = cell_res[i*cell_size:(i+1)*cell_size].reshape(cell_shape)    
         if return_system:
             return A, b
-
+    
 
 #______________________________TESTING________________________
 
