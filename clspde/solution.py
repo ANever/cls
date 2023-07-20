@@ -57,7 +57,7 @@ def lp(line, function_list, variable_list):
             ops_stack = []
         else:
             res += splited[i]
-    return lambda u_loc, u_bas, x, x_loc: eval(res)
+    return res
 
 def concat(a:np.ndarray, b:np.ndarray):
     a = np.array(a)
