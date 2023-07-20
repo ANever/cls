@@ -108,5 +108,15 @@ iterate through cells and generate and solve local systems in every cell
 ```
 sol.solve(**iteration_dict)
 ```
+7. Plot results
 
+For 2d functions
+```
+sol.plot2d()
+```
 
+## Further plans
+
+- add various basises (Legandre polynomial, sin, cos, exp)
+- add iteration speedup with Galerkin method
+- rewrite in C
