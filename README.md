@@ -44,6 +44,27 @@ colloc_right_operators = [lambda u_loc, u_nei, x, x_loc: (0) * w**2*colloc_weigh
 ]
 colloc_ops = [colloc_left_operators, colloc_right_operators]
 ```
+
+or with parser:
+
+```
+function_list = ['m', 'v']
+variable_list = ['t','x']
+
+from clspde.solution import lp as l
+
+def lp(line, function_list=function_list, variable_list = variable_list):
+    res = l(line, function_list, variable_list)
+    return lambda u_loc, u_bas, x, x_loc: eval(res)
+
+colloc_left_operators = [lp('(d/dt) m - eps * (d/dx)^2 m - ( (d/dx) m * (d/dx) &v + (d/dx) &m * (d/dx) v +' +
+                                                                ' m + (d/dx)^2 &v + &m + (d/dx)^2 v )'
+                                                                ),
+                                                                ...
+]
+...
+```
+
 what is equivalent to 
 $$\frac{\partial}{\partial t} u_1 -\varepsilon \frac{\partial^2}{\partial x^2} u_1 - div (u_1 \nabla \hat{u_2}) = 0 $$
 where $\hat{u}$ is known from previous iteration (initially is 0).
