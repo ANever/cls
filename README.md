@@ -57,10 +57,11 @@ def lp(line, function_list=function_list, variable_list = variable_list):
     res = l(line, function_list, variable_list)
     return lambda u_loc, u_bas, x, x_loc: eval(res)
 
-colloc_left_operators = [lp('(d/dt) m - eps * (d/dx)^2 m - ( (d/dx) m * (d/dx) &v + (d/dx) &m * (d/dx) v +' +
-                                                                ' m + (d/dx)^2 &v + &m + (d/dx)^2 v )'
-                                                                ),
-                                                                ...
+colloc_left_operators = [lp('(d/dt) m - eps * (d/dx)^2 m - '+
+                        '( (d/dx) m * (d/dx) &v + (d/dx) &m * (d/dx) v +' +
+                        ' m + (d/dx)^2 &v + &m + (d/dx)^2 v )'
+                        ),
+                        ...
 ]
 ...
 ```
