@@ -304,14 +304,14 @@ class Solution():
         connect_weight = 1
 
         # print('normalized')
-        # def normalize(mat, r):
-        #     coef = np.mean(mat[mat!=0])
-        #     mat /= coef
-        #     r /= coef
-        #     return mat, r
+        def normalize(mat, r):
+            coef = np.mean(mat[mat!=0])
+            mat /= coef
+            r /= coef
+            return mat, r
         
-        # for (mat, r) in zip([colloc_mat, connect_mat, border_mat],[colloc_r, connect_r, border_r]):
-        #     mat ,r = normalize(mat, r)
+        for (mat, r) in zip([colloc_mat, connect_mat, border_mat],[colloc_r, connect_r, border_r]):
+            mat ,r = normalize(mat, r)
 
         res_mat = concat(concat(colloc_mat, border_mat), connect_mat * connect_weight)
         res_right = concat(concat(colloc_r, border_r), connect_r * connect_weight)
@@ -482,7 +482,7 @@ class Solution():
         plt.plot(func)
         plt.show()
     
-    def plot2d(self, n=100, x_lims = None, y_lims = None, func_num=0, derivatives = [0,0]):
+    def plot2d(self, n=100, x_lims = None, y_lims = None, func_num=0, derivatives = [0,0], **plot_kwargs):
         func = np.zeros((n,n))
         if x_lims == None:
             x_lims = self.area_lims[0]
@@ -498,10 +498,8 @@ class Solution():
 
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"}, figsize = (7,7))
         surf = ax.plot_surface(X, Y, func, cmap=cm.coolwarm,
-                        linewidth=0, antialiased=False)
+                        linewidth=0, antialiased=False, **plot_kwargs)
 
-        # ax.set_xticks(X)
-        # ax.set_xticks(Y)
         fig.colorbar(surf, shrink=0.5, aspect=5)
         ax.set_xlabel('t')
         ax.set_ylabel('x')

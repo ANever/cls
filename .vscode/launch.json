@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "cpp",
+            "request": "launch",
+            "program": "venv/bin/mamba",
+            "args": ["serve", "-l", "composer/project-compose.yml"],
+            "console": "integratedTerminal"
+        }
+    ]
+}
