@@ -33,15 +33,21 @@ def lp(line, function_list, variable_list):
             except:
                 power = 1
             dif_powers[var_index] = int(power)
-        if func[0]=='&':
+        previous = ''
+        if func[:2]=='&&':
+            f_name = 'u_loc'
+            previous = ',prev=True'
+        if func[:1]=='&':
             f_name = 'u_loc'
         else:
             f_name = 'u_bas'
         func_index = function_list.index(func.replace('&',''))
-        return (f_name+'('+str(dif_powers)+', '+str(func_index)+')')
+        return (f_name+'('+str(dif_powers)+', '+str(func_index)+ previous +')')
 
     def is_func(string:str):
-        if string[0]=='&' and (string[1:] in function_list):
+        if string[:2]=='&&' and (string[2:] in function_list):
+            return (True, 'prev')
+        if string[:1]=='&' and (string[1:] in function_list):
             return (True, 'local')
         if string in function_list:
             return (True, 'basis')
@@ -213,7 +219,16 @@ class Solution():
                 self.cells_coefs[func][cell][rows[:,np.newaxis],columns] = old_cell_coefs[func][cell]
 
 
-    def eval(self, point: np.ndarray, derivatives: np.ndarray, func:int = 0, cell_num = None, local = False, cells_closed_right: bool = False):  #->float
+    def eval(self, 
+             point: np.ndarray, 
+             derivatives: np.ndarray, 
+             func:int = 0, 
+             cell_num = None, 
+             local = False, 
+             cells_closed_right: bool = False, 
+             coefs = None,
+             prev = False):  #->float
+
         '''evaluation of solution function with argument x and list of partial derivatives
         
         Args:
@@ -225,11 +240,15 @@ class Solution():
         '''
         derivatives = np.abs(derivatives)
         
+        if prev:
+            coefs = self.prev_coefs
+        else:
+            coefs = self.cells_coefs
         if local:
             local_point = point
         else:
             cell_num, local_point = self.localize(point, cells_closed_right)
-        coefs = self.cells_coefs[tuple(np.insert(np.array(cell_num, dtype=int), 0, func))]
+        coefs = coefs[tuple(np.insert(np.array(cell_num, dtype=int), 0, func))]
         result = copy.deepcopy(coefs)
         #applying coefs tensor to evaled basis in point
         if self.precalculated_basis:
@@ -404,11 +423,11 @@ class Solution():
                     result[func*bas_size:(func+1)*bas_size] = self.basis.eval(loc_point, der, ravel=True)
                 return result
 
-            def u_loc(der,func=0):
+            def u_loc(der,func=0,prev=False):
                 try:
-                    result = self.eval(loc_point, der, func=func, local = True, cell_num = cell_num)
+                    result = self.eval(loc_point, der, func=func, local = True, cell_num = cell_num, prev=prev)
                 except IndexError:
-                    result = self.eval(loc_point, der, func=func, local = True, cell_num = cell_num, cells_closed_right=True)
+                    result = self.eval(loc_point, der, func=func, local = True, cell_num = cell_num, prev=prev, cells_closed_right=True)
                 return result
 
             return operator(u_loc, u_bas, x, loc_point)
@@ -421,8 +440,8 @@ class Solution():
 
             global_point = self.globalize(cell_num, point)
             # x = global_point
-            loc_point = copy.deepcopy(point)            
-            u_loc = lambda der, func_num=0: self.eval(loc_point, der, local = True, cell_num = cell_num, func=func_num)   # for linearization purpses
+            loc_point = copy.deepcopy(point)
+            u_loc = lambda der, func_num=0, prev=False: self.eval(loc_point, der, local = True, cell_num = cell_num, func=func_num)   # for linearization purpses
 
             neigh_point = loc_point-2*dir(loc_point)
 
@@ -482,7 +501,7 @@ class Solution():
         plt.plot(func)
         plt.show()
     
-    def plot2d(self, n=100, x_lims = None, y_lims = None, func_num=0, derivatives = [0,0], **plot_kwargs):
+    def plot2d(self, n=100, x_lims = None, y_lims = None, func_num=0, derivatives = [0,0], label = ['t','x'], func_name='', **plot_kwargs):
         func = np.zeros((n,n))
         if x_lims == None:
             x_lims = self.area_lims[0]
@@ -501,8 +520,9 @@ class Solution():
                         linewidth=0, antialiased=False, **plot_kwargs)
 
         fig.colorbar(surf, shrink=0.5, aspect=5)
-        ax.set_xlabel('t')
-        ax.set_ylabel('x')
+        ax.set_xlabel(label[0])
+        ax.set_ylabel(label[1])
+        ax.set_title(func_name)
         plt.show()
 
 
@@ -629,7 +649,7 @@ class Solution():
 
     def global_solve(self, solver = 'np',return_system = False, calculate = True, svd_threshold = 1e-4, verbose = False, alpha=0,  **kwargs):
         A, b = self.generate_global_system(**kwargs)
-
+        self.prev_coefs = self.cells_coefs
         if alpha > 0:
             A = concat(A, np.eye(A.shape[1])*alpha)
             b = concat(b, np.zeros(A.shape[1]))
