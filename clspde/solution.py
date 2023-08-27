@@ -37,7 +37,7 @@ def lp(line, function_list, variable_list):
         if func[:2]=='&&':
             f_name = 'u_loc'
             previous = ',prev=True'
-        if func[:1]=='&':
+        elif func[:1]=='&':
             f_name = 'u_loc'
         else:
             f_name = 'u_bas'
@@ -116,6 +116,7 @@ class Solution():
     def init_grid(self) -> None:
         self.cells_shape = tuple([self.n_funcs] + list(self.dim_sizes) + [self.power]*self.n_dims)
         self.cells_coefs = np.zeros(self.cells_shape)
+        self.prev_coefs = np.zeros(self.cells_shape)
         self.cell_size = self.n_funcs * (self.power**self.n_dims)
 
     def precalculate_basis(self, points: np.ndarray, max_der: np.ndarray) -> None:
@@ -649,7 +650,6 @@ class Solution():
 
     def global_solve(self, solver = 'np',return_system = False, calculate = True, svd_threshold = 1e-4, verbose = False, alpha=0,  **kwargs):
         A, b = self.generate_global_system(**kwargs)
-        self.prev_coefs = self.cells_coefs
         if alpha > 0:
             A = concat(A, np.eye(A.shape[1])*alpha)
             b = concat(b, np.zeros(A.shape[1]))
@@ -667,7 +667,9 @@ class Solution():
                 cell_res = res[size*cell_index:size*(cell_index+1)]
 
                 for i in range(self.n_funcs):
-                    self.cells_coefs[(i,*cell)] = cell_res[i*cell_size:(i+1)*cell_size].reshape(cell_shape)    
+                    self.cells_coefs[(i,*cell)] = cell_res[i*cell_size:(i+1)*cell_size].reshape(cell_shape)
+        
+        self.prev_coefs = copy.deepcopy(self.cells_coefs)
         if return_system:
             return A, b
     
