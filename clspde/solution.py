@@ -386,11 +386,11 @@ class Solution():
         """
         #generate common line
         n = self.power
-        integral_cell = 1/np.array(range(1,n+1)) * ([2, 0]*int(np.ceil(n/2)))[:n]
+        integral_cell = self.basis.eval([time, 1],[0,0],raver=True)#1/np.array(range(1,n+1)) * ([2, 0]*int(np.ceil(n/2)))[:n]
         full_line = np.zeros(np.prod(self.cells_shape))
-        a = np.zeros((self.power, self.power))
-        a[0] = integral_cell
-        cell_line = concat(np.ravel(a), np.ravel(a) * 0)
+        # a = np.zeros((self.power, self.power))
+        # a[0] = integral_cell
+        # cell_line = concat(np.ravel(a), np.ravel(a) * 0)
 
         inds = [list(range(size)) for size in self.dim_sizes]
         all_cells = list(itertools.product(*inds))
@@ -398,13 +398,13 @@ class Solution():
         for cell_num in all_cells:
             if cell_num[0] == time:
                 cell_ind = cell_num[1] + cell_num[0] * self.dim_sizes[1]
-                full_line[cell_ind * num_of_vars:(cell_ind+1) * num_of_vars] = cell_line
-        return full_line
+                full_line[cell_ind * num_of_vars:(cell_ind+1) * num_of_vars] = integral_cell
+
+        return full_line, 1
         #TODO
         #set time moment
         #iterate over space
         #set common line into cells
-        
 
     def generate_eq(self, cell_num, left_side_operator, right_side_operator, points):
         '''basic func for generating equation from leftside and rightside operators
@@ -524,7 +524,7 @@ class Solution():
         ax.set_xlabel(label[0])
         ax.set_ylabel(label[1])
         ax.set_title(func_name)
-        plt.show()
+        # plt.show()
 
 
     def cell_index(self, cell_num):
@@ -536,9 +536,9 @@ class Solution():
             raise LookupError
         return cell_ind
 
-    def generate_global_system(self, points: np.ndarray, colloc_ops, border_ops, connect_ops = [], connect_weight=1, 
+    def generate_global_system(self, points: np.ndarray, colloc_ops, border_ops, connect_ops = [], weights = [1,1,1], 
                                function_list = ['u', 'v'], variable_list=['x','y']) -> tuple:
-        
+         
         colloc_points, connect_points, border_points = points
 
         def dir(point: np.ndarray) -> np.ndarray:
@@ -570,9 +570,10 @@ class Solution():
         inds = [list(range(size)) for size in self.dim_sizes]
         all_cells = list(itertools.product(*inds))
         
+        num_of_cells = len(all_cells)
+
         num_of_collocs = len(colloc_points) * len(colloc_ops[0])
         num_of_eqs = len(all_cells) * num_of_collocs
-        num_of_cells = len(all_cells)
 
         global_colloc_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))
         global_colloc_right = np.zeros(num_of_eqs)
@@ -630,14 +631,16 @@ class Solution():
         global_connect_mat = np.array(global_connect_mat)
         global_connect_right = np.zeros(len(global_connect_mat))
 
-        # def normalize(mat, r):
-        #     coef = np.max(np.abs(mat[mat!=0]))
-        #     mat /= coef
-        #     r /= coef
-        #     return mat, r
+        # connect_w, border_w, connect_w = weights
+
+        def normalize(mat, r, w):
+            coef = np.max(np.abs(mat[mat!=0]))
+            mat /= coef * w
+            r /= coef * w
+            return mat, r
         
-        # for (mat, r) in zip([global_colloc_mat, global_connect_mat, global_border_mat],[global_colloc_right, global_connect_right, global_border_right]):
-        #     mat ,r = normalize(mat, r)
+        for (mat, r, w) in zip([global_colloc_mat, global_connect_mat, global_border_mat],[global_colloc_right, global_connect_right, global_border_right], weights):
+            mat ,r = normalize(mat, r, w)
 
         res_mat = concat(concat(global_colloc_mat, global_border_mat), global_connect_mat)
         res_right = concat(concat(global_colloc_right, global_border_right), global_connect_right)
