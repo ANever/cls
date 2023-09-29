@@ -494,39 +494,6 @@ class Solution():
             # connect_mat.append(connect_line) #???
         return np.array(connect_mat)
 
-    def plot(self, n = 100):
-        func = np.zeros(n)
-        grid = np.linspace(self.area_lims[0,0], self.area_lims[0,1], n, endpoint=False)
-        for i in range(len(grid)): 
-            func[i] = self.eval(grid[i], [0])
-        plt.plot(func)
-        plt.show()
-    
-    def plot2d(self, n=100, x_lims = None, y_lims = None, func_num=0, derivatives = [0,0], label = ['t','x'], func_name='', **plot_kwargs):
-        func = np.zeros((n,n))
-        if x_lims == None:
-            x_lims = self.area_lims[0]
-        if y_lims == None:
-            y_lims = self.area_lims[1]
-        ax1 = np.linspace(x_lims[0], x_lims[1], n, endpoint=False)
-        ax2 = np.linspace(y_lims[0], y_lims[1], n, endpoint=False)
-        X, Y = np.meshgrid(ax1, ax2)
-
-        for i in range(n):
-            for j in range(n): 
-                func[j, i] = self.eval([ax1[i], ax2[j]], derivatives, func=func_num)
-
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"}, figsize = (7,7))
-        surf = ax.plot_surface(X, Y, func, cmap=cm.coolwarm,
-                        linewidth=0, antialiased=False, **plot_kwargs)
-
-        fig.colorbar(surf, shrink=0.5, aspect=5)
-        ax.set_xlabel(label[0])
-        ax.set_ylabel(label[1])
-        ax.set_title(func_name)
-        # plt.show()
-
-
     def cell_index(self, cell_num):
         if self.n_dims == 2:
             cell_ind = cell_num[0] + cell_num[1] * self.dim_sizes[0] # + cell_num[2] * prod(self.dim_sizes[:2]...
@@ -536,7 +503,7 @@ class Solution():
             raise LookupError
         return cell_ind
 
-    def generate_global_system(self, points: np.ndarray, colloc_ops, border_ops, connect_ops = [], weights = [1,1,1], 
+    def generate_global_system(self, points: np.ndarray, colloc_ops, border_ops, connect_ops = [], weights = (1,1,1), 
                                function_list = ['u', 'v'], variable_list=['x','y']) -> tuple:
          
         colloc_points, connect_points, border_points = points
@@ -563,35 +530,27 @@ class Solution():
         if len(colloc_points) == 0:
             colloc_points = f_collocation_points(self.power)
         
-        connect_left_operators, connect_right_operators = connect_ops
-
         num_of_vars = self.cell_size # np.prod(self.cells_coefs.shape)
 
         inds = [list(range(size)) for size in self.dim_sizes]
         all_cells = list(itertools.product(*inds))
         
+        # alloc_matices
         num_of_cells = len(all_cells)
 
-        num_of_collocs = len(colloc_points) * len(colloc_ops[0])
-        num_of_eqs = len(all_cells) * num_of_collocs
+        def alloc_matrices(points, ops):
+            num_eqs_per_cell = len(points) * len(ops[0])
+            num_eqs_of_type = num_of_cells * num_eqs_per_cell
+            left_operators, right_operators = ops
+            global_mat = np.zeros((num_eqs_of_type, num_of_vars * num_of_cells))
+            global_right = np.zeros(num_eqs_of_type)
+            return num_eqs_per_cell, left_operators, right_operators, global_mat, global_right
 
-        global_colloc_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))
-        global_colloc_right = np.zeros(num_of_eqs)
+        num_of_collocs, colloc_left_operators, colloc_right_operators, global_colloc_mat, global_colloc_right = alloc_matrices(colloc_points, colloc_ops)
+        num_of_border, border_left_operators, border_right_operators, global_border_mat, global_border_right = alloc_matrices(border_points, border_ops)
+        num_of_connect, connect_left_operators, connect_right_operators, global_connect_mat, global_connect_right = alloc_matrices(connect_points, connect_ops)
 
-        num_of_border = len(border_points)* len(border_ops[0])
-        num_of_eqs = len(all_cells)*num_of_border
-
-        global_border_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))
-        global_border_right = np.zeros(num_of_eqs)
-        
-        num_of_connect = len(connect_points)* len(connect_ops)
-        num_of_eqs = len(all_cells)*num_of_connect
-        
         global_connect_mat = []
-        global_connect_right = np.zeros(num_of_eqs)
-        
-        colloc_left_operators, colloc_right_operators = colloc_ops
-        border_left_operators, border_right_operators = border_ops
 
         for ops in [connect_left_operators, connect_right_operators, colloc_left_operators, colloc_right_operators, border_left_operators, border_right_operators]:
             self.prepare_ops(ops, function_list, variable_list)
@@ -631,7 +590,7 @@ class Solution():
         global_connect_mat = np.array(global_connect_mat)
         global_connect_right = np.zeros(len(global_connect_mat))
 
-        # connect_w, border_w, connect_w = weights
+        # normalize and weight equations
 
         def normalize(mat, r, w):
             coef = np.max(np.abs(mat[mat!=0]))
@@ -676,6 +635,39 @@ class Solution():
         if return_system:
             return A, b
     
+    
+    def plot(self, n = 100):
+        func = np.zeros(n)
+        grid = np.linspace(self.area_lims[0,0], self.area_lims[0,1], n, endpoint=False)
+        for i in range(len(grid)): 
+            func[i] = self.eval(grid[i], [0])
+        plt.plot(func)
+        plt.show()
+    
+    def plot2d(self, n=100, x_lims = None, y_lims = None, func_num=0, derivatives = [0,0], label = ['t','x'], func_name='', **plot_kwargs):
+        func = np.zeros((n,n))
+        if x_lims == None:
+            x_lims = self.area_lims[0]
+        if y_lims == None:
+            y_lims = self.area_lims[1]
+        ax1 = np.linspace(x_lims[0], x_lims[1], n, endpoint=False)
+        ax2 = np.linspace(y_lims[0], y_lims[1], n, endpoint=False)
+        X, Y = np.meshgrid(ax1, ax2)
+
+        for i in range(n):
+            for j in range(n): 
+                func[j, i] = self.eval([ax1[i], ax2[j]], derivatives, func=func_num)
+
+        fig, ax = plt.subplots(subplot_kw={"projection": "3d"}, figsize = (7,7))
+        surf = ax.plot_surface(X, Y, func, cmap=cm.coolwarm,
+                        linewidth=0, antialiased=False, **plot_kwargs)
+
+        fig.colorbar(surf, shrink=0.5, aspect=5)
+        ax.set_xlabel(label[0])
+        ax.set_ylabel(label[1])
+        ax.set_title(func_name)
+        # plt.show()
+
 
 #______________________________TESTING________________________
 
