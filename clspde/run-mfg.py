@@ -1,5 +1,5 @@
-from solution_global_wip import Solution
-from solution_global_wip import lp as _lp
+from solution import Solution
+from solution import lp as _lp
 import copy
 from basis import Basis
 import itertools

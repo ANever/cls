@@ -5,6 +5,7 @@ from basis import Basis
 import numbers
 from qr_solver import QR_solve, SVD_solve
 import re 
+from scipy.special import roots_legendre
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -95,11 +96,7 @@ def concat(a: np.array, b: np.array):
 
 
 def f_collocation_points(N):
-    points = np.zeros(N + 1)
-    h = 2 / (N + 1)
-    points[0] = -1 + h / 2
-    for i in range(1, N + 1):
-        points[i] = points[i - 1] + h
+    points = roots_legendre(N+1)[0]
     return np.array(points).reshape(N + 1, 1)
 
 
