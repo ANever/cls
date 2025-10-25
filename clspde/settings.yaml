@@ -1,0 +1,133 @@
+MODEL:    
+  n_dims: 2
+  dim_sizes: np.array([30, 6])
+  area_lims: np.array([[0, 0.5], [0, 1.]])
+  power: 5
+  n_funcs: 4
+
+WEIGHTS:
+    border_weight: 200
+    colloc_weight: 1.5
+    connect_weights: np.array([20, 10]) * 0.75
+
+NS:
+  nx: [100, 100]
+
+IN_VAR_NAMES:
+ [t, x]
+
+OUT_VAR_NAMES:
+ [u]
+
+CUSTOM_CONSTS:
+  a: 1
+  b: 1
+  eps: 0.0001
+  w: 1
+  k1: 1
+  k2: 1
+  border_weight: 1
+  no_need_weight: 0
+  small: 1e-10
+  w1: 1
+  w2: 1
+  w3: 1
+  w0: 1
+  gamma: 3
+
+CUSTOM_FUNCS:
+  beta: 'lambda x: 12*x[1]'
+    #initial_state: 'lambda x: x'
+    #terminal_state: 'lambda x: 0*x'
+
+COLLOC_OPS_new:
+  left: '[ (d/dt) S - beta(x)* S * ~I + ~S * I + eps/2 * (d/dx)**2 S -1/2/w0 * ((d/dx)^2 ~psi * S 
+            +(d/dx)^2 psi * ~S + (d/dx) ~psi * (d/dx) S + (d/dx) psi * (d/dx) ~S )]'
+#fuctions S I psi beta_s_i
+COLLOC_OPS:
+  left: '[
+        lambda _, u_loc, u_bas, x, x_loc:
+            - u_bas([1, 0], 0) - beta(x) * (u_bas([0, 0], 0)*u_loc([0,0],1)+u_loc([0, 0], 0)*u_bas([0,0],1))
+            + eps/2 * u_bas([0, 2], 0)
+            -1/2/w0 * (u_bas([0, 2], 2)*u_loc([0,0],0) + u_loc([0, 2], 2)*u_bas([0,0],0)
+            +u_bas([0, 1], 2)*u_loc([0,1],0) + u_loc([0, 1], 2)*u_bas([0,1],0)),
+        lambda _, u_loc, u_bas, x, x_loc:
+            -u_bas([1, 0], 2)
+            + eps/2 * u_bas([0, 2], 2)
+            - (2*w1*u_bas([0, 0], 1)*u_loc([0, 0], 1)
+              +w2*x[1]*u_bas([0,0],1)
+              +2*u_bas([0,1],2)*u_loc([0,1],2)),
+        lambda _, u_loc, u_bas, x, x_loc: u_bas([0,1],3),
+        lambda _, u_loc, u_bas, x, x_loc: u_bas([0,1],1) 
+    ]'
+  right: '[lambda _, u_loc, u_nei, x, x_loc: -beta(x) * u_loc([0, 0], 0)*u_loc([0,0],1)
+          -1/2/w0 * (u_loc([0, 2], 2)*u_loc([0,0],0)
+          + u_loc([0, 1], 2)*u_loc([0,1],1)),
+
+           lambda _, u_loc, u_nei, x, x_loc: - (w1*u_loc([0, 0], 1)**2
+              +u_loc([0,1],2)**2)-w3*(1-x[1])**2,
+
+           lambda _, u_loc, u_nei, x, x_loc: beta(x) * u_loc([0, 0], 0)*u_loc([0,0],1),
+
+           lambda _, u_loc, u_nei, x, x_loc: 0
+          ]'
+
+
+BORDER_OPS:
+  left: '[
+        lambda self, _, u_bas, x, x_loc: int(x_loc[0] == -1)
+        * (u_bas([0, 0], 0)) * border_weight,
+        lambda self, _, u_bas, x, x_loc: int(x_loc[0] == -1)
+        * (u_bas([0, 0], 1)) * border_weight,       
+
+        lambda self, _, u_bas, x, x_loc: int(x_loc[0]==1)
+        * (u_bas([0, 0], 2)) * border_weight,
+
+        lambda self, _, u_bas, x, x_loc: int(x_loc[1] == 1)
+        * ( -u_bas([1, 0], 1) + u_bas([0,0],3) - gamma*u_bas([0,0],1))* border_weight,
+        
+        lambda self, _, u_bas, x, x_loc: int(x_loc[1] == -1)
+        * (u_bas([0,0],3))* border_weight,
+        
+        lambda self, _, u_bas, x, x_loc: int(x_loc[1] == -1)
+        * (u_bas([0, 1], 0))* border_weight,
+        lambda self, _, u_bas, x, x_loc: int(x_loc[1] == 1)
+        * (u_bas([0, 1], 0))* border_weight,
+        
+        lambda self, _, u_bas, x, x_loc: int(x_loc[1] == -1)
+        * (u_bas([0, 1], 2))* border_weight,
+        lambda self, _, u_bas, x, x_loc: int(x_loc[1] == 1)
+        * (u_bas([0, 1], 2))* border_weight,
+
+    ]'
+
+  right: '[
+        lambda self, u, _, x, x_loc: 0.95 * border_weight,
+        lambda self, u, _, x, x_loc: 0.05 * border_weight,
+        lambda self, u, _, x, x_loc: 0. * border_weight,
+        lambda self, u, _, x, x_loc: 0. * border_weight,
+        lambda self, u, _, x, x_loc: 0. * border_weight,
+        
+        lambda self, u, _, x, x_loc: 0. * border_weight,
+        lambda self, u, _, x, x_loc: 0. * border_weight,
+
+        lambda self, u, _, x, x_loc: 0. * border_weight,
+        lambda self, u, _, x, x_loc: 0. * border_weight,
+        ]'
+
+CONNECT_POINTS:
+  np.array([
+        [-1, 0], 
+        [0, -1],
+        [1,0], 
+        [0,1],
+        [-1, 0.5],
+        [1, 0.5],
+        [0.5, -1],
+        [0.5, 1],
+        [-1, -0.5],
+        [1, -0.5],
+        [-0.5, -1],
+        [-0.5, 1],
+    ])
+
