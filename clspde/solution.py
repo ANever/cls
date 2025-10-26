@@ -350,13 +350,10 @@ class Solution:
         mat_len = len(left_ops) * n_points
         mat = np.zeros((mat_len, self.cell_size))
         r = np.zeros((mat_len))
-        #mat, r = self.generate_eq(cell_num, left_ops[0], right_ops[0], points)
         for i in range(1, len(left_ops)):
             mat[n_points*i:n_points*(i+1)], r[n_points*i:n_points*(i+1)] = self.generate_eq(
                 cell_num, left_ops[i], right_ops[i], points
             )
-        #    mat = utils.concat(mat, mat_small)
-        #    r = utils.concat(r, r_small)
         return mat, r
 
     def generate_connection_couple(self, left_ops, cell_num, points: np.array) -> tuple:
@@ -377,10 +374,8 @@ class Solution:
             )
 
             connect_line = np.zeros((len(left_ops[0]), np.prod(self.cells_coefs.shape)))
-
             index = self.cell_index(cell_num)
             neigh_index = self.cell_index(neigh)
-            #print(cell_num)
             connect_line[:, index * self.cell_size : (index + 1) * self.cell_size] = (
                 first_line
             )
@@ -388,7 +383,6 @@ class Solution:
                 :, neigh_index * self.cell_size : (neigh_index + 1) * self.cell_size
             ] = -second_line
 
-            #connect_mat = utils.concat(connect_mat, connect_line)
             connect_mat[len(left_ops[0]) * i : len(left_ops[0]) * (i+1)] = connect_line
         return np.array(connect_mat)
 
@@ -445,31 +439,18 @@ class Solution:
             for cell_num in all_cells:
                 points_for_use = points_filter(points, cell_num)
                 cell_ind = self.cell_index(cell_num)
-                
+                slice0 = lambda x: slice(cell_ind * num_of_lines, cell_ind * num_of_lines + x, None) 
+                slice1 = slice(cell_ind * num_of_vars, (cell_ind + 1) * num_of_vars, None)
                 if _type=='default':
-                    _mat, _r = self.generate_subsystem(
-                        ops,
-                        cell_num,
-                        points_for_use,
-                        )
+                    _mat, _r = self.generate_subsystem(ops,cell_num,points_for_use)
                     len_of_mat = _mat.shape[0]
-                    global_mat[
-                        cell_ind * num_of_lines : cell_ind * num_of_lines + len_of_mat,
-                        cell_ind * num_of_vars : (cell_ind + 1) * num_of_vars,
-                    ] = _mat
-                    global_right[
-                        cell_ind * num_of_lines : cell_ind*num_of_lines + len_of_mat
-                    ] = _r
+                    global_mat[slice0(len_of_mat), slice1] = _mat
+                    global_right[slice0(len_of_mat)] = _r
                 elif _type=='connect':
                     connect_left_operators, connect_right_operators = ops
-                    _mat = self.generate_connection_couple(
-                        [connect_left_operators, connect_right_operators],
-                        cell_num,
-                        points_for_use,
-                        )
+                    _mat = self.generate_connection_couple(ops,cell_num,points_for_use)
                     len_of_mat = _mat.shape[0]
-                    global_mat[
-                    cell_ind * num_of_lines : cell_ind * num_of_lines + len_of_mat] = _mat
+                    global_mat[slice0(len_of_mat)] = _mat
         
             return global_mat, global_right
 

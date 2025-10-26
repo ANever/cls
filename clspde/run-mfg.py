@@ -189,7 +189,7 @@ sol.cells_coefs.ravel() - b)))
         break
 
 for i in range(len(function_list)):
-    sol.plot2d(func_num=i)
+    utils.plot2d(sol, func_num=i)
 
 params_to_save = copy.deepcopy(params)
 params_to_save.pop("basis", None)

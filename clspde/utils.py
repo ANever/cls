@@ -1,7 +1,7 @@
 import copy
 import numpy as np
 import re 
-
+import matplotlib.pyplot as plt
 from scipy.special import roots_legendre
 
 def lp(line, function_list, variable_list):
