@@ -1,9 +1,9 @@
 from solution import Solution
-from solution import lp as _lp
 import copy
 from basis import Basis
 import itertools
 import numpy as np
+import utils
 
 import yaml
 
@@ -38,7 +38,7 @@ customs={'beta': 20,
         'w3': 1}
 
 def lp(line, function_list=function_list, variable_list = variable_list, customs=customs):
-    res = _lp(line, function_list, variable_list)
+    res = utils.lp(line, function_list, variable_list)
     print(res)
     return lambda _, u_loc, u_bas, x, x_loc: eval(res, customs | {'u_bas': u_bas, 'u_loc': u_loc, 'x_loc': x_loc, 'x':x})
 
@@ -129,17 +129,6 @@ settings_filename = "settings.yaml"
 with open(settings_filename, mode="r") as file:
     settings = yaml.safe_load(file)
 
-
-def f_collocation_points(N):
-    points = np.zeros(N + 1)
-    h = 2 / (N + 1)
-    points[0] = -1 + h / 2
-    for i in range(1, N + 1):
-        points[i] = points[i - 1] + h
-    return np.array(points).reshape(N + 1, 1)
-#connect_points = eval(settings['CONNECT_POINTS'])
-#border_points = connect_points
-
 dots = np.linspace(-0.9,0.9,power)
 connect_points = np.array([[-1, i] for i in dots] + [[1, i] for i in dots]+
                 [[i,-1] for i in dots] + [[i,1] for i in dots])
@@ -149,14 +138,8 @@ border_points = connect_points
 
 small = 1e-5
 
-c_p_1d = f_collocation_points(power+1).reshape(power + 2)
+c_p_1d = utils.f_collocation_points(power+1).reshape(power + 2)
 colloc_points = np.array(list(itertools.product(c_p_1d, c_p_1d)))
-
-
-def dir(point: np.array) -> np.array:
-    direction = (np.abs(point) == 1) * (np.sign(point))
-    return np.array(direction, dtype=int)
-
 
 points = [colloc_points, connect_points, border_points]
 

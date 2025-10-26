@@ -1,109 +1,12 @@
 import numpy as np
 import copy
 import itertools
-from basis import Basis
-import numbers
+
+import utils
+from utils import dir
+
 from qr_solver import QR_solve, SVD_solve
-import re 
-from scipy.special import roots_legendre
-
-import matplotlib.pyplot as plt
-from matplotlib import cm
-
-from math import comb
-
-
-def lp(line, function_list, variable_list):
-    splited = line.split(' ')
-
-    ops_stack = []
-
-    def is_der_operator(string: str):
-        if re.findall('\(d\/d..?\)', string):
-            return True
-        else:
-            return False
-        
-    def apply_ops(ops_stack: list, func: str):
-        dif_powers = [0]*len(variable_list)
-        for op in ops_stack:
-            op = op.replace('(d/d', '')
-            op = op.replace(')', '')
-            op = op.split('^')
-
-            var_index = variable_list.index(op[0])
-            try:
-                power = op[1]
-            except:
-                power = 1
-            dif_powers[var_index] = int(power)
-        previous = ''
-        if func[:2]=='&&':
-            f_name = 'u_loc'
-            previous = ',prev=True'
-        elif func[:1]=='&':
-            f_name = 'u_loc'
-        else:
-            f_name = 'u_bas'
-        func_index = function_list.index(func.replace('&',''))
-        return (f_name+'('+str(dif_powers)+', '+str(func_index)+ previous +')')
-
-    def is_func(string:str):
-        if string[:2]=='&&' and (string[2:] in function_list):
-            return (True, 'prev')
-        if string[:1]=='&' and (string[1:] in function_list):
-            return (True, 'local')
-        if string in function_list:
-            return (True, 'basis')
-        else:
-            return (False, None)
-
-    res = ''
-    for i in range(len(splited)):
-        if is_der_operator(splited[i]):
-            ops_stack.append(splited[i])
-        elif is_func(splited[i])[0]:
-            res += (apply_ops(ops_stack, splited[i],))
-            ops_stack = []
-        else:
-            res += splited[i]
-    return res
-
-
-def eval_dict(d, kwargs={}, recursion=0):
-    if recursion == 0:
-        for key in d.keys():
-            if key not in ["eq_string", "act", "right_side"]:
-                if not isinstance(d[key], numbers.Number):
-                    d[key] = eval(str(d[key]), kwargs)
-        return d
-    else:
-        for key in d.keys():
-            if key not in ["eq_string", "act", "right_side"]:
-                d[key] = eval_dict(d[key], kwargs | d, recursion - 1)
-        return d
-
-
-def concat(a: np.array, b: np.array):
-    a = np.array(a)
-    b = np.array(b)
-    if b.size == 0:
-        return a
-    if a.size == 0:
-        return a
-    else:
-        return np.concatenate((a, b))
-
-
-def f_collocation_points(N):
-    points = roots_legendre(N+1)[0]
-    return np.array(points).reshape(N + 1, 1)
-
-
-def dir(point: np.array) -> np.array:
-    direction = (np.abs(point) == 1) * (np.sign(point))
-    return np.array(direction, dtype=int)
-
+from basis import Basis
 
 class Solution:
     def __init__(
@@ -114,7 +17,7 @@ class Solution:
         area_lims: np.array,
         power: int,
         n_funcs: int = 1,
-        periodic=None
+        periodic = None
     ) -> None:
         """
         initiation of solution
@@ -142,6 +45,17 @@ class Solution:
         )
         self.cells_coefs = np.ones(self.cells_shape) * 0.4
         self.cell_size = self.n_funcs * (self.power**self.n_dims)
+
+    def cell_index(self, cell_num):
+        if self.n_dims == 2:
+            cell_ind = (
+                cell_num[1] + cell_num[0] * self.dim_sizes[1]
+            )  # + cell_num[2] * prod(self.dim_sizes[:2]...
+        elif self.n_dims == 1:
+            cell_ind = cell_num[0]
+        else:
+            raise LookupError
+        return cell_ind
 
     def localize(
         self, global_point: np.array, cells_closed_right: bool = False
@@ -253,7 +167,7 @@ class Solution:
 
         # default colloc points
         if len(colloc_points) == 0:
-            colloc_points = f_collocation_points(self.power)
+            colloc_points = utils.f_collocation_points(self.power)
 
         colloc_mat, colloc_r = self.generate_subsystem(
             colloc_ops, cell_num, colloc_points
@@ -294,8 +208,8 @@ class Solution:
             connect_points_for_use,
         )
         connect_weight = 1
-        res_mat = concat(concat(colloc_mat, border_mat), connect_mat * connect_weight)
-        res_right = concat(concat(colloc_r, border_r), connect_r * connect_weight)
+        res_mat = utils.concat(utils.concat(colloc_mat, border_mat), connect_mat * connect_weight)
+        res_right = utils.concat(utils.concat(colloc_r, border_r), connect_r * connect_weight)
 
         return res_mat, res_right
 
@@ -348,7 +262,7 @@ class Solution:
         full_line = np.zeros(np.prod(self.cells_shape))
         a = np.zeros((self.power, self.power))
         a[0] = integral_cell
-        cell_line = concat(np.ravel(a), np.ravel(a) * 0)
+        cell_line = utils.concat(np.ravel(a), np.ravel(a) * 0)
 
         inds = [list(range(size)) for size in self.dim_sizes]
         all_cells = list(itertools.product(*inds))
@@ -437,8 +351,8 @@ class Solution:
             mat_small, r_small = self.generate_eq(
                 cell_num, left_ops[i], right_ops[i], points
             )
-            mat = concat(mat, mat_small)
-            r = concat(r, r_small)
+            mat = utils.concat(mat, mat_small)
+            r = utils.concat(r, r_small)
         return mat, r
 
     def generate_connection_couple(self, left_ops, cell_num, points: np.array) -> tuple:
@@ -469,7 +383,7 @@ class Solution:
                 :, neigh_index * self.cell_size : (neigh_index + 1) * self.cell_size
             ] = -second_line
 
-            #connect_mat = concat(connect_mat, connect_line)
+            #connect_mat = utils.concat(connect_mat, connect_line)
             connect_mat[len(left_ops[0]) * i : len(left_ops[0]) * (i+1)] = connect_line
         return np.array(connect_mat)
 
@@ -498,54 +412,6 @@ class Solution:
         connect_ops = [connect_left_operators, connect_right_operators]
         return connect_ops
 
-    def plot(self, n=100):
-        func = np.zeros(n)
-        grid = np.linspace(
-            self.area_lims[0, 0], self.area_lims[0, 1], n, endpoint=False
-        )
-        for i in range(len(grid)):
-            func[i] = self.eval(grid[i], [0])
-        plt.plot(func)
-        plt.show()
-
-    def plot2d(self, n=100, x_lims=None, y_lims=None, func_num=0, derivatives=[0, 0]):
-        func = np.zeros((n, n))
-        if x_lims is None:
-            x_lims = self.area_lims[0]
-        if y_lims is None:
-            y_lims = self.area_lims[1]
-        ax1 = np.linspace(x_lims[0], x_lims[1], n, endpoint=False)
-        ax2 = np.linspace(y_lims[0], y_lims[1], n, endpoint=False)
-        X, Y = np.meshgrid(ax1, ax2)
-
-        for i in range(n):
-            for j in range(n):
-                func[j, i] = self.eval([ax1[i], ax2[j]], derivatives, func=func_num)
-
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"}, figsize=(7, 7))
-        surf = ax.plot_surface(
-            X, Y, func, cmap=cm.coolwarm, linewidth=0, antialiased=False
-        )
-
-        # ax.set_xticks(X)
-        # ax.set_xticks(Y)
-        fig.colorbar(surf, shrink=0.5, aspect=5)
-        ax.set_xlabel("t")
-        ax.set_ylabel("x")
-        plt.savefig("plot" + str(func_num) + ".pdf")
-        plt.show()
-
-    def cell_index(self, cell_num):
-        if self.n_dims == 2:
-            cell_ind = (
-                cell_num[1] + cell_num[0] * self.dim_sizes[1]
-            )  # + cell_num[2] * prod(self.dim_sizes[:2]...
-        elif self.n_dims == 1:
-            cell_ind = cell_num[0]
-        else:
-            raise LookupError
-        return cell_ind
-
     def generate_global_system(
         self, points: np.array, colloc_ops, border_ops, connect_ops=[], connect_weight=1
     ) -> tuple:
@@ -557,12 +423,12 @@ class Solution:
 
         # default colloc points
         if len(colloc_points) == 0:
-            colloc_points = f_collocation_points(self.power)
+            colloc_points = utils.f_collocation_points(self.power)
 
         connect_left_operators, connect_right_operators = connect_ops
 
-        num_of_vars = self.cell_size  # np.prod(self.cells_coefs.shape)
-
+        num_of_vars = self.cell_size  
+        
         inds = [list(range(size)) for size in self.dim_sizes]
         all_cells = list(itertools.product(*inds))
 
@@ -585,7 +451,6 @@ class Solution:
         global_connect_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))#[]
         global_connect_right = np.zeros(num_of_eqs)
 
-        first_connect = True
         for cell_num in all_cells:
             left_borders = cell_num == np.zeros(self.n_dims)
             right_borders = cell_num == (self.dim_sizes - 1)
@@ -653,12 +518,12 @@ class Solution:
         global_connect_mat = np.array(global_connect_mat)
         global_connect_right = np.zeros(len(global_connect_mat))
 
-        res_mat = concat(
-            concat(global_colloc_mat, global_border_mat),
+        res_mat = utils.concat(
+            utils.concat(global_colloc_mat, global_border_mat),
             global_connect_mat * connect_weight,
         )
-        res_right = concat(
-            concat(global_colloc_right, global_border_right),
+        res_right = utils.concat(
+            utils.concat(global_colloc_right, global_border_right),
             global_connect_right * connect_weight,
         )
 
@@ -701,15 +566,7 @@ class Solution:
 
 if __name__ == "__main__":
 
-    def f_collocation_points(N):
-        points = np.zeros(N + 1)
-        h = 2 / (N + 1)
-        points[0] = -1 + h / 2
-        for i in range(1, N + 1):
-            points[i] = points[i - 1] + h
-        return np.array(points).reshape(N + 1, 1)
-
-    colloc_points = f_collocation_points(5)
+    colloc_points = utils.f_collocation_points(5)
 
     power = 5
     params = {
@@ -778,4 +635,4 @@ if __name__ == "__main__":
     A, b = sol.global_solve(**iteration_dict)
     #for i in range(20):
     #    sol.iterate_cells(**iteration_dict)
-    sol.plot()
+    plot(sol)
