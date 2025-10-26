@@ -346,13 +346,17 @@ class Solution:
 
     def generate_subsystem(self, ops, cell_num, points: np.array) -> tuple:
         left_ops, right_ops = ops
-        mat, r = self.generate_eq(cell_num, left_ops[0], right_ops[0], points)
+        n_points = len(points)
+        mat_len = len(left_ops) * n_points
+        mat = np.zeros((mat_len, self.cell_size))
+        r = np.zeros((mat_len))
+        #mat, r = self.generate_eq(cell_num, left_ops[0], right_ops[0], points)
         for i in range(1, len(left_ops)):
-            mat_small, r_small = self.generate_eq(
+            mat[n_points*i:n_points*(i+1)], r[n_points*i:n_points*(i+1)] = self.generate_eq(
                 cell_num, left_ops[i], right_ops[i], points
             )
-            mat = utils.concat(mat, mat_small)
-            r = utils.concat(r, r_small)
+        #    mat = utils.concat(mat, mat_small)
+        #    r = utils.concat(r, r_small)
         return mat, r
 
     def generate_connection_couple(self, left_ops, cell_num, points: np.array) -> tuple:
@@ -376,6 +380,7 @@ class Solution:
 
             index = self.cell_index(cell_num)
             neigh_index = self.cell_index(neigh)
+            #print(cell_num)
             connect_line[:, index * self.cell_size : (index + 1) * self.cell_size] = (
                 first_line
             )
@@ -425,114 +430,105 @@ class Solution:
         if len(colloc_points) == 0:
             colloc_points = utils.f_collocation_points(self.power)
 
-        connect_left_operators, connect_right_operators = connect_ops
-
-        num_of_vars = self.cell_size  
-        
         inds = [list(range(size)) for size in self.dim_sizes]
         all_cells = list(itertools.product(*inds))
-
-        num_of_collocs = len(colloc_points) * len(colloc_ops[0])
-        num_of_eqs = len(all_cells) * num_of_collocs
         num_of_cells = len(all_cells)
-
-        global_colloc_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))
-        global_colloc_right = np.zeros(num_of_eqs)
-
-        num_of_border = len(border_points) * len(border_ops[0])
-        num_of_eqs = len(all_cells) * num_of_border
-
-        global_border_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))
-        global_border_right = np.zeros(num_of_eqs)
+        num_of_vars = self.cell_size  
         
-        num_of_connect = len(connect_points) * len(connect_ops[0])
-        num_of_eqs = len(all_cells) * num_of_connect
-
-        global_connect_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))#[]
-        global_connect_right = np.zeros(num_of_eqs)
-
-        for cell_num in all_cells:
-            left_borders = cell_num == np.zeros(self.n_dims)
-            right_borders = cell_num == (self.dim_sizes - 1)
-
-            left_border_for_use = np.array([
-                np.logical_and(np.abs(point+1) < 1e-5, left_borders).any()
-                for point in border_points
-            ])
-            right_border_for_use = np.array([
-                np.logical_and(np.abs(point-1) < 1e-5, right_borders).any()
-                for point in border_points
-            ])
-            if np.logical_or(left_border_for_use, right_border_for_use).any():
-                border_points_for_use = np.array(border_points)
-            else:
-                border_points_for_use = np.array([])
+        def generate_global_condition_mat(points, ops, points_filter, _type='default'):
+            num_of_lines = len(points) * len(ops[0])
+            num_of_eqs = len(all_cells) * num_of_lines
             
-            colloc_mat, colloc_r = self.generate_subsystem(
-                colloc_ops, cell_num, colloc_points
-            )
-            border_mat, border_r = self.generate_subsystem(
-                border_ops,
-                cell_num,
-                border_points_for_use,
-            ) 
-
-            cell_ind = self.cell_index(cell_num)
-
-            global_colloc_mat[
-                cell_ind * num_of_collocs : (cell_ind + 1) * num_of_collocs,
-                cell_ind * num_of_vars : (cell_ind + 1) * num_of_vars,
-            ] = colloc_mat
-            global_colloc_right[
-                cell_ind * num_of_collocs : (cell_ind + 1) * num_of_collocs
-            ] = colloc_r
-
-            num_of_border = border_mat.shape[0]
-            global_border_mat[
-                cell_ind * num_of_border : (cell_ind + 1) * num_of_border,
-                cell_ind * num_of_vars : (cell_ind + 1) * num_of_vars,
-            ] = border_mat
-            global_border_right[
-                cell_ind * num_of_border : (cell_ind + 1) * num_of_border
-            ] = border_r
-
-            left_connect_for_use = np.array([
-                np.logical_and(np.abs(point+1) < 1e-5, ~left_borders).any()
-                for point in connect_points
-            ])
-            right_connect_for_use = np.array([
-                np.logical_and(np.abs(point-1) < 1e-5, ~right_borders).any()
-                for point in connect_points
-            ])
-            connect_points_for_use = connect_points[
-                np.logical_or(left_connect_for_use, right_connect_for_use)
-            ]
-            connect_mat = self.generate_connection_couple(
-                [connect_left_operators, connect_right_operators],
-                cell_num,
-                connect_points_for_use,
-            )
-            connect_weight = 1    
-            global_connect_mat[cell_ind * num_of_connect:cell_ind * num_of_connect + len(connect_points_for_use) * len(connect_ops[0])] = connect_mat
+            global_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))
+            global_right = np.zeros(num_of_eqs)
+            
+            for cell_num in all_cells:
+                points_for_use = points_filter(points, cell_num)
+                cell_ind = self.cell_index(cell_num)
+                
+                if _type=='default':
+                    _mat, _r = self.generate_subsystem(
+                        ops,
+                        cell_num,
+                        points_for_use,
+                        )
+                    len_of_mat = _mat.shape[0]
+                    global_mat[
+                        cell_ind * num_of_lines : cell_ind * num_of_lines + len_of_mat,
+                        cell_ind * num_of_vars : (cell_ind + 1) * num_of_vars,
+                    ] = _mat
+                    global_right[
+                        cell_ind * num_of_lines : cell_ind*num_of_lines + len_of_mat
+                    ] = _r
+                elif _type=='connect':
+                    connect_left_operators, connect_right_operators = ops
+                    _mat = self.generate_connection_couple(
+                        [connect_left_operators, connect_right_operators],
+                        cell_num,
+                        points_for_use,
+                        )
+                    len_of_mat = _mat.shape[0]
+                    global_mat[
+                    cell_ind * num_of_lines : cell_ind * num_of_lines + len_of_mat] = _mat
         
-        global_connect_mat = np.array(global_connect_mat)
-        global_connect_right = np.zeros(len(global_connect_mat))
+            return global_mat, global_right
 
+        global_colloc_mat, global_colloc_r = generate_global_condition_mat(colloc_points, colloc_ops, self.colloc_points_filter)
+        global_border_mat, global_border_r = generate_global_condition_mat(border_points, border_ops, self.border_points_filter)
+        global_connect_mat, global_connect_r = generate_global_condition_mat(connect_points, connect_ops, self.connect_points_filter, _type='connect')
+        
         res_mat = utils.concat(
             utils.concat(global_colloc_mat, global_border_mat),
             global_connect_mat * connect_weight,
         )
         res_right = utils.concat(
-            utils.concat(global_colloc_right, global_border_right),
-            global_connect_right * connect_weight,
+            utils.concat(global_colloc_r, global_border_r),
+            global_connect_r * connect_weight,
         )
 
         notnull_ind = np.sum(res_mat != 0, axis=1) != 0
         res_mat = res_mat[notnull_ind]
         res_right = res_right[notnull_ind]
-        # print(res_mat,'\n-------\n', res_right, '\n\n')
         return res_mat, res_right
 
+    def colloc_points_filter(self, points, cell_num):
+            return points
+
+    def border_points_filter(self, points, cell_num):
+        left_borders = cell_num == np.zeros(self.n_dims)
+        right_borders = cell_num == (self.dim_sizes - 1)
+
+        left_border_for_use = np.array([
+            np.logical_and(np.abs(point+1) < 1e-5, left_borders).any()
+            for point in points
+        ])
+        right_border_for_use = np.array([
+            np.logical_and(np.abs(point-1) < 1e-5, right_borders).any()
+            for point in points
+        ])
+        if np.logical_or(left_border_for_use, right_border_for_use).any():
+            border_points_for_use = np.array(points)
+        else:
+            border_points_for_use = np.array([])
+        return border_points_for_use
+        
+    def connect_points_filter(self, points, cell_num):
+        left_borders = cell_num == np.zeros(self.n_dims)
+        right_borders = cell_num == (self.dim_sizes - 1)
+
+        left_connect_for_use = np.array([
+            np.logical_and(np.abs(point+1) < 1e-5, ~left_borders).any()
+            for point in points
+        ])
+        right_connect_for_use = np.array([
+            np.logical_and(np.abs(point-1) < 1e-5, ~right_borders).any()
+            for point in points
+        ])
+        connect_points_for_use = points[
+            np.logical_or(left_connect_for_use, right_connect_for_use)
+        ]
+        return connect_points_for_use
+        
     def global_solve(
         self,
         solver="np",
@@ -618,7 +614,6 @@ if __name__ == "__main__":
     connect_points = np.array([[-1], [1]])
     border_points = connect_points
     
-
     points = (colloc_points, connect_points, border_points)
 
     iteration_dict = {

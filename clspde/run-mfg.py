@@ -188,8 +188,8 @@ sol.cells_coefs.ravel() - b)))
     if sol_change < 1e-5:
         break
 
-#for i in range(len(function_list)):
-#    sol.plot2d(func_num=i)
+for i in range(len(function_list)):
+    sol.plot2d(func_num=i)
 
 params_to_save = copy.deepcopy(params)
 params_to_save.pop("basis", None)
