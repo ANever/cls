@@ -602,10 +602,7 @@ class Solution:
                 border_points_for_use = np.array(border_points)
             else:
                 border_points_for_use = np.array([])
-            #border_points_for_use = np.array(border_points)[
-            #    np.logical_or(left_border_for_use, right_border_for_use)
-            #]
-
+            
             colloc_mat, colloc_r = self.generate_subsystem(
                 colloc_ops, cell_num, colloc_points
             )
@@ -613,10 +610,8 @@ class Solution:
                 border_ops,
                 cell_num,
                 border_points_for_use,
-            )
+            ) 
 
-            # for 2d only!
-            # cell_ind = cell_num[0] + cell_num[1] * self.dim_sizes[0] # + cell_num[2] * prod(self.dim_sizes[:2]...
             cell_ind = self.cell_index(cell_num)
 
             global_colloc_mat[
@@ -682,10 +677,6 @@ class Solution:
         **kwargs,
     ):
         A, b = self.generate_global_system(**kwargs)
-
-        #if alpha > 0:
-        #    A = concat(A, np.eye(A.shape[1]) * alpha)
-        #    b = concat(b, np.zeros(A.shape[1]))
         if calculate:
             res = self._solver(A, b, solver=solver, verbose=verbose, alpha=alpha)
             inds = [list(range(size)) for size in self.dim_sizes]
