@@ -114,6 +114,7 @@ class Solution:
         area_lims: np.array,
         power: int,
         n_funcs: int = 1,
+        periodic=None
     ) -> None:
         """
         initiation of solution
@@ -131,7 +132,10 @@ class Solution:
         self.steps = (self.area_lims[:, 1] - self.area_lims[:, 0]) / self.dim_sizes
         self.basis = Basis(power, steps=self.steps, n_dims=n_dims)
         self.split_mats_inited = False
-
+        if periodic is None:
+            periodic = [False]* self.n_dims
+        self.periodic = periodic
+        
     def init_grid(self) -> None:
         self.cells_shape = tuple(
             [self.n_funcs] + list(self.dim_sizes) + [self.power] * self.n_dims
@@ -442,8 +446,9 @@ class Solution:
         # right ops substitude
         right_ops = [lambda *_: 0] * len(left_ops[0])
 
-        connect_mat = np.zeros((len(left_ops[0]), np.prod(self.cells_coefs.shape)))
-        for point in points:
+        #connect_mat = np.zeros((len(left_ops[0]), np.prod(self.cells_coefs.shape)))
+        connect_mat = np.zeros((len(left_ops[0]) * len(points), np.prod(self.cells_coefs.shape)))
+        for i, point in enumerate(points):
             first_line, _ = self.generate_subsystem(
                 [left_ops[0], right_ops], cell_num, np.array([point])
             )
@@ -464,7 +469,8 @@ class Solution:
                 :, neigh_index * self.cell_size : (neigh_index + 1) * self.cell_size
             ] = -second_line
 
-            connect_mat = concat(connect_mat, connect_line)
+            #connect_mat = concat(connect_mat, connect_line)
+            connect_mat[len(left_ops[0]) * i : len(left_ops[0]) * (i+1)] = connect_line
         return np.array(connect_mat)
 
     def default_connect_ops(self, weights=[100, 10]):
@@ -572,10 +578,11 @@ class Solution:
 
         global_border_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))
         global_border_right = np.zeros(num_of_eqs)
-        num_of_connect = len(connect_points) * len(connect_ops)
+        
+        num_of_connect = len(connect_points) * len(connect_ops[0])
         num_of_eqs = len(all_cells) * num_of_connect
 
-        global_connect_mat = []
+        global_connect_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))#[]
         global_connect_right = np.zeros(num_of_eqs)
 
         first_connect = True
@@ -637,35 +644,17 @@ class Solution:
                 np.logical_and(np.abs(point-1) < 1e-5, ~right_borders).any()
                 for point in connect_points
             ])
-            
             connect_points_for_use = connect_points[
                 np.logical_or(left_connect_for_use, right_connect_for_use)
             ]
-            
-            #print(cell_num, cell_ind, connect_points_for_use)
-            #print((np.logical_or(connect_points_for_use, np.logical_or(left_border_for_use, right_border_for_use).any())).all())
-            
-            
             connect_mat = self.generate_connection_couple(
                 [connect_left_operators, connect_right_operators],
                 cell_num,
                 connect_points_for_use,
             )
-            connect_weight = 1
-            # num_of_connect = connect_mat.shape[0]
-            # global_connect_mat[cell_ind * num_of_connect:(cell_ind+1) * num_of_connect, cell_ind * num_of_vars:(cell_ind+1) * num_of_vars] = connect_mat
-            if first_connect:
-                # print('initing')
-                global_connect_mat = connect_mat
-                first_connect = False
-            else:
-                # print('concating')
-                global_connect_mat = concat(global_connect_mat, connect_mat)
-            # print('concat_len', (global_connect_mat.shape))
-            # print(global_connect_mat)
-            # global_connect_mat.append(connect_mat)
-            # print(connect_mat, connect_mat.shape)
-
+            connect_weight = 1    
+            global_connect_mat[cell_ind * num_of_connect:cell_ind * num_of_connect + len(connect_points_for_use) * len(connect_ops[0])] = connect_mat
+        
         global_connect_mat = np.array(global_connect_mat)
         global_connect_right = np.zeros(len(global_connect_mat))
 
