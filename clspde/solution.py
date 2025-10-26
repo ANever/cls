@@ -307,7 +307,6 @@ class Solution:
                 }
                 try:
                     result = self.eval(**eval_kwargs)
-                # loc_point, der, func=func, local=True, cell_num=cell_num
                 except IndexError:
                     result = self.eval(cells_closed_right=True, **eval_kwargs)
                 return result
@@ -349,8 +348,8 @@ class Solution:
         n_points = len(points)
         mat_len = len(left_ops) * n_points
         mat = np.zeros((mat_len, self.cell_size))
-        r = np.zeros((mat_len))
-        for i in range(1, len(left_ops)):
+        r = np.zeros(mat_len)
+        for i in range(len(left_ops)):
             mat[n_points*i:n_points*(i+1)], r[n_points*i:n_points*(i+1)] = self.generate_eq(
                 cell_num, left_ops[i], right_ops[i], points
             )
@@ -358,10 +357,8 @@ class Solution:
 
     def generate_connection_couple(self, left_ops, cell_num, points: np.array) -> tuple:
         # left ops must be a pair of functions
-        # right ops substitude
         right_ops = [lambda *_: 0] * len(left_ops[0])
 
-        #connect_mat = np.zeros((len(left_ops[0]), np.prod(self.cells_coefs.shape)))
         connect_mat = np.zeros((len(left_ops[0]) * len(points), np.prod(self.cells_coefs.shape)))
         for i, point in enumerate(points):
             first_line, _ = self.generate_subsystem(
@@ -429,7 +426,7 @@ class Solution:
         num_of_cells = len(all_cells)
         num_of_vars = self.cell_size  
         
-        def generate_global_condition_mat(points, ops, points_filter, _type='default'):
+        def generate_global_condition_mat(points, ops, points_filter, _type=None):
             num_of_lines = len(points) * len(ops[0])
             num_of_eqs = len(all_cells) * num_of_lines
             
@@ -441,17 +438,14 @@ class Solution:
                 cell_ind = self.cell_index(cell_num)
                 slice0 = lambda x: slice(cell_ind * num_of_lines, cell_ind * num_of_lines + x, None) 
                 slice1 = slice(cell_ind * num_of_vars, (cell_ind + 1) * num_of_vars, None)
-                if _type=='default':
-                    _mat, _r = self.generate_subsystem(ops,cell_num,points_for_use)
-                    len_of_mat = _mat.shape[0]
-                    global_mat[slice0(len_of_mat), slice1] = _mat
-                    global_right[slice0(len_of_mat)] = _r
+                if _type is None or _type == 'default':
+                    _mat, _r = self.generate_subsystem(ops, cell_num, points_for_use)
+                    global_mat[slice0(_mat.shape[0]), slice1] = _mat
+                    global_right[slice0(_mat.shape[0])] = _r
                 elif _type=='connect':
                     connect_left_operators, connect_right_operators = ops
                     _mat = self.generate_connection_couple(ops,cell_num,points_for_use)
-                    len_of_mat = _mat.shape[0]
-                    global_mat[slice0(len_of_mat)] = _mat
-        
+                    global_mat[slice0(_mat.shape[0])] = _mat
             return global_mat, global_right
 
         global_colloc_mat, global_colloc_r = generate_global_condition_mat(colloc_points, colloc_ops, self.colloc_points_filter)
@@ -548,7 +542,7 @@ if __name__ == "__main__":
     power = 5
     params = {
         "n_dims": 1,
-        "dim_sizes": np.array([5]),
+        "dim_sizes": np.array([3]),
         "area_lims": np.array([[0, 1]]),
         "power": power,
     }
@@ -556,7 +550,7 @@ if __name__ == "__main__":
 
     w = sol.steps[0] / 2
 
-    colloc_left_operators = [lambda  s, u_loc, u_bas, x, x_loc: u_bas([4]) * (w**4)]
+    colloc_left_operators = [lambda  s, u_loc, u_bas, x, x_loc: u_bas([3]) * (w**4)]
     colloc_right_operators = [
         lambda s, u_loc, u_nei, x, x_loc: np.exp(x)
         * (x**4 + 14 * (x**3) + 49 * (x**2) + 32 * x - 12)
@@ -611,4 +605,4 @@ if __name__ == "__main__":
     A, b = sol.global_solve(**iteration_dict)
     #for i in range(20):
     #    sol.iterate_cells(**iteration_dict)
-    plot(sol)
+    utils.plot(sol)

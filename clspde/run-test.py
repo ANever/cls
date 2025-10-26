@@ -7,7 +7,8 @@ import utils
 
 import yaml
 
-power = 6
+power = 4
+
 
 function_list = ['S', 'I', 'betaS', 'psi', 'betaSg']
 variable_list = ['t','x']
@@ -29,11 +30,11 @@ border_weight = 50
 sol = Solution(**params)
 sol.cells_coefs *= 0.01
 
-customs={'beta': 20,
+customs={'beta': 10,
         'sigma': 0.1,
         'gamma': 2,
         'w1': 1.,
-        'w2': 20,
+        'w2': 10,
         'w3': 1}
 
 def lp(line, function_list=function_list, variable_list = variable_list, customs=customs):
@@ -41,7 +42,7 @@ def lp(line, function_list=function_list, variable_list = variable_list, customs
     print(res)
     return lambda _, u_loc, u_bas, x, x_loc: eval(res, customs | {'u_bas': u_bas, 'u_loc': u_loc, 'x_loc': x_loc, 'x':x})
 
-colloc_left_operators = [lp('-( (d/dt) S ) + sigma /2 * (d/dx)^2 S - 1/2 * ( (d/dx) S * (d/dx) &psi + (d/dx) &S * (d/dx) psi + S * (d/dx)^2 &psi + &S * (d/dx)^2 psi ) '),
+colloc_left_operators = [lp('-( (d/dt) S ) + sigma /2 * (d/dx)^2 S '),
 lp('- (d/dt) psi - (1/2 * ( (d/dx) psi * (d/dx) &psi ))'),
                 lp('(d/dt) I - &betaSg * I + gamma * I'),
                 lp('(d/dx) I'),
@@ -179,7 +180,7 @@ for j in range(k):
         alpha=1e-8,
         **iteration_dict,
     )
-    speed = (0.2 + (1/2/(j+1)))/2
+    speed = (0.05 + (1/2/(j+1)))/2
     sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs 
     sol_change = np.max(np.abs(prev_eval - sol_eval(sol)))
     print(j,' | ', np.max(np.abs(prev_coefs - sol.cells_coefs)),' | ', sol_change , ' | ', np.max(np.abs(A @
