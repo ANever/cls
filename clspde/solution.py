@@ -538,7 +538,10 @@ if __name__ == "__main__":
 
     colloc_points = utils.f_collocation_points(5)
 
-    power = 5
+    power = 4
+    function_list = ['u']
+    variable_list = ['x']
+    customs = {'small': 1e-5}
     params = {
         "n_dims": 1,
         "dim_sizes": np.array([3]),
@@ -548,23 +551,18 @@ if __name__ == "__main__":
     sol = Solution(**params)
 
     w = sol.steps[0] / 2
+    def lp(lines_list, function_list=function_list, variable_list = variable_list, customs=customs):
+        line_res = np.array([utils.lp(line, function_list=function_list, variable_list=variable_list, customs=customs) for line in lines_list]).T
+        return line_res
 
-    colloc_left_operators = [lambda  s, u_loc, u_bas, x, x_loc: u_bas([3]) * (w**4)]
-    colloc_right_operators = [
-        lambda s, u_loc, u_nei, x, x_loc: np.exp(x)
-        * (x**4 + 14 * (x**3) + 49 * (x**2) + 32 * x - 12)
-        * (w**4)
-    ]
+    colloc_lines = ['(d/dx)^3 u = np.exp(x) * (x**4 + 14 * (x**3) + 49 * (x**2) + 32 * x - 12)']
     
-    colloc_ops = [colloc_left_operators, colloc_right_operators]
+    initial_string = '1' #'int(x[0] < sol.area_lims[0, 0] + small)'
+    border_lines = [initial_string + '* u = ' + initial_string + ' * 0.']
 
-    border_left_operators = [
-        lambda s,  _, u_bas, x, x_loc: u_bas([0]),
-        #lambda s,  _, u_bas, x, x_loc: u_bas([1]) * w,
-    ]
-    border_right_operators = [lambda  s, u, _, x, x_loc: 0, lambda  s, u, _, x, x_loc: 0 * w]
-    border_ops = [border_left_operators, border_right_operators]
-
+    colloc_ops = lp(colloc_lines, customs=customs)
+    border_ops = lp(border_lines, customs=customs)
+    
     k1,k2 = 1,1
     func_num = 0
     connect_left_operators = [
@@ -600,6 +598,7 @@ if __name__ == "__main__":
     A, b = sol.global_solve(calculate=False, **iteration_dict)
     print(A.shape)
     print(A)
+    print(b)
     
     A, b = sol.global_solve(**iteration_dict)
     #for i in range(20):

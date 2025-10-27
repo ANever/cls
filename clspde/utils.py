@@ -6,13 +6,13 @@ import matplotlib.cm as cm
 from scipy.special import roots_legendre
 
 
-def lp(line, *args, **kwargs):
+def lp(line, **kwargs):
     #print(line.split('='))
     splited = line.split('=')
     if len(splited)>2:
         raise ValueError('Too much equalities in line:' + line)
-    left_operator = _lp(splited[0],*args, **kwargs)
-    right_operator = _lp(splited[1],*args, **kwargs)
+    left_operator = _lp(splited[0], **kwargs)
+    right_operator = _lp(splited[1], **kwargs)
     return [left_operator, right_operator]
 
 
@@ -70,8 +70,10 @@ def _lp(line, function_list, variable_list, customs):
             ops_stack = []
         else:
             res += splited[i]
+    
+    print(res)
     res = compile(res, '<string>', 'eval')
-    return lambda _self, u_loc, u_bas, x, x_loc: eval(res, customs | {'sol':_self, 'u_bas': u_bas, 'u_loc': u_loc, 'x_loc': x_loc, 'x':x})
+    return lambda _self, u_loc, u_bas, x, x_loc: eval(res, customs | {'sol':_self, 'u_bas': u_bas, 'u_loc': u_loc, 'x_loc': x_loc, 'x':x, 'np':np})
 
 
 def eval_dict(d, kwargs={}, recursion=0):

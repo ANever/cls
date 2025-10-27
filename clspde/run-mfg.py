@@ -24,8 +24,6 @@ def initial_state(x):
     _, x = x
     return 0.9 
 
-border_weight = 50
-
 sol = Solution(**params)
 sol.cells_coefs *= 0.01
 
@@ -37,32 +35,37 @@ customs={'beta': 20,
         'w3': 1,
         'border_weight': 50,
         'small': 1e-5,
+        'w': 0.15
         }
 
 def lp(lines_list, function_list=function_list, variable_list = variable_list, customs=customs):
-    line_res = np.array([utils.lp(line, function_list, variable_list, customs=customs) for line in colloc_lines]).T
+    print(lines_list)
+    line_res = np.array([utils.lp(line, function_list=function_list, variable_list = variable_list, customs=customs) for line in lines_list]).T
     return line_res
 
 colloc_lines = [
-    '-( (d/dt) S ) + sigma /2 * (d/dx)^2 S - 1/2 * ( (d/dx) S * (d/dx) &psi + (d/dx) &S * (d/dx) psi + S * (d/dx)^2 &psi + &S * (d/dx)^2 psi ) - (d/dt) psi - (1/2 * ( (d/dx) psi * (d/dx) &psi )) = beta*x[1]*( &S * &I ) + 1/2 * ( (d/dx) &S * (d/dx) &psi + &S * (d/dx)^2 &psi ) ',
-    '(d/dt) I - &betaSg * I + gamma * I = w1*( &I )**2 + w2*x[1] * (0.5 + &I ) + w3*(1- x[1])**2',
-    '(d/dx) I = 0',
-    '(d/dx) betaSg = 0',
-    '(d/dx) betaS = 0'
+    'w**2*( (-( (d/dt) S ) + sigma /2 * (d/dx)^2 S - 1/2 * ( (d/dx) S * (d/dx) &psi + (d/dx) &S * (d/dx) psi + S * (d/dx)^2 &psi + &S * (d/dx)^2 psi ) - (d/dt) psi - (1/2 * ( (d/dx) psi * (d/dx) &psi )) ) ) = w**2*( beta*x[1]*( &S * &I ) + 1/2 * ( (d/dx) &S * (d/dx) &psi + &S * (d/dx)^2 &psi )) ',
+    'w*( (d/dt) I - &betaSg * I + gamma * I ) = w* ( w1*( &I )**2 + w2*x[1] * (0.5 + &I ) + w3*(1- x[1])**2 )',
+    'w*( (d/dx) I ) = 0',
+    'w*( (d/dx) betaSg ) = 0',
+    'w*( (d/dx) betaS ) = 0'
 ]
 
+#TODO get rid of border_weight in equations
 borders_string = 'int(x[0] > sol.area_lims[0, 0] + small) * int(x[0] < sol.area_lims[0, 1] - small)'
 initial_string = 'int(x[0] < sol.area_lims[0, 0] + small)'
 terminal_string = 'int(x[0] > sol.area_lims[0, 1] - small)'
+left_border = 'int(x[1] < sol.area_lims[1, 0] + small)'
+right_border = 'int(x[1] > sol.area_lims[1, 1] - small)'
 border_lines = [
-    borders_string + '* (d/dx) S * border_weight = 0 * border_weight',
-    borders_string + '* (d/dx) I * border_weight = 0 * border_weight',
-    borders_string + '* (d/dx) psi * border_weight = 0 * border_weight',
-    initial_string + '* (d/dx) S * border_weight = 0.9 * border_weight',
-    initial_string + '* (d/dx) I * border_weight = 0.1 * border_weight',
-    terminal_string + '* (d/dx) psi * border_weight = 0 * border_weight',
-    'int(x[1] > sol.area_lims[1, 1] - small) * betaSg * border_weight = betaS * border_weight ',
-    'int(x[1] < sol.area_lims[1, 0] + small)* betaS* border_weight = 0',
+    borders_string + '*w* (d/dx) S * border_weight = 0 * border_weight',
+    borders_string + '*w* (d/dx) I * border_weight = 0 * border_weight',
+    borders_string + '*w* (d/dx) psi * border_weight = 0 * border_weight',
+    initial_string + '* S * border_weight = '+initial_string+'*0.9 * border_weight',
+    initial_string + '* I * border_weight = '+initial_string+'*0.1 * border_weight',
+    terminal_string + '* psi * border_weight = 0 * border_weight',
+    left_border + '* betaSg * border_weight = '+left_border+'* &betaS * border_weight ',
+    right_border + '* betaS * border_weight = 0',
     ]
 
 colloc_ops = lp(colloc_lines, customs=customs)
@@ -81,10 +84,6 @@ connect_points = np.array([[-1, i] for i in dots] + [[1, i] for i in dots]+
                 [[i,-1] for i in dots] + [[i,1] for i in dots])
 border_points = connect_points
 
-
-
-small = 1e-5
-
 c_p_1d = utils.f_collocation_points(power+1).reshape(power + 2)
 colloc_points = np.array(list(itertools.product(c_p_1d, c_p_1d)))
 
@@ -99,8 +98,8 @@ iteration_dict = {
 import copy
 
 n = 20
-ts = np.linspace(params["area_lims"][0, 0], params["area_lims"][0, 1] - small, n)
-xs = np.linspace(params["area_lims"][1, 0], params["area_lims"][1, 1] - small, n)
+ts = np.linspace(params["area_lims"][0, 0], params["area_lims"][0, 1] - 1e-5, n)
+xs = np.linspace(params["area_lims"][1, 0], params["area_lims"][1, 1] - 1e-5, n)
 
 
 def sol_eval(sol, ts=ts, xs=xs):
@@ -121,13 +120,13 @@ for j in range(k):
     prev_eval = sol_eval(sol)
     A, b = sol.global_solve(
         solver="np",
-        alpha=1e-8,
+        alpha=0,
         **iteration_dict,
     )
-    speed = (0.2 + (1/2/(j+1)))/2
+    speed = (0.1 + (1/2/(j+1)))/4
     sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs 
     sol_change = np.max(np.abs(prev_eval - sol_eval(sol)))
-    print(j,' | ', np.max(np.abs(prev_coefs - sol.cells_coefs)),' | ', sol_change , ' | ', np.max(np.abs(A @
+    print(j,f'\t', np.max(np.abs(prev_coefs - sol.cells_coefs)),f'\t', sol_change , f'\t', np.max(np.abs(A @
 sol.cells_coefs.ravel() - b)))
     if sol_change < 1e-5:
         break
