@@ -310,7 +310,6 @@ class Solution:
                 except IndexError:
                     result = self.eval(cells_closed_right=True, **eval_kwargs)
                 return result
-
             return operator(self, u_loc, u_bas, x, loc_point)
 
         def right_side(operator, cell_num, point: np.array) -> float:

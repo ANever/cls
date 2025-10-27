@@ -34,99 +34,47 @@ customs={'beta': 20,
         'gamma': 2,
         'w1': 1.,
         'w2': 20,
-        'w3': 1}
+        'w3': 1,
+        'border_weight': 50,
+        'small': 1e-5,
+        }
 
-def lp(line, function_list=function_list, variable_list = variable_list, customs=customs):
-    res = utils.lp(line, function_list, variable_list)
-    print(res)
-    return lambda _, u_loc, u_bas, x, x_loc: eval(res, customs | {'u_bas': u_bas, 'u_loc': u_loc, 'x_loc': x_loc, 'x':x})
+def lp(lines_list, function_list=function_list, variable_list = variable_list, customs=customs):
+    line_res = np.array([utils.lp(line, function_list, variable_list, customs=customs) for line in colloc_lines]).T
+    return line_res
 
-colloc_left_operators = [lp('-( (d/dt) S ) + sigma /2 * (d/dx)^2 S - 1/2 * ( (d/dx) S * (d/dx) &psi + (d/dx) &S * (d/dx) psi + S * (d/dx)^2 &psi + &S * (d/dx)^2 psi ) '),
-lp('- (d/dt) psi - (1/2 * ( (d/dx) psi * (d/dx) &psi ))'),
-                lp('(d/dt) I - &betaSg * I + gamma * I'),
-                lp('(d/dx) I'),
-                lp('(d/dx) betaSg'),
-                lp('(d/dx) betaS')
-                ]
-
-colloc_right_operators = [lp('beta*x[1]*( &S * &I ) + 1/2 * ( (d/dx) &S * (d/dx) &psi + &S * (d/dx)^2 &psi ) '),
-                lp('w1*( &I )**2 + w2*x[1] * (0.5 + &I ) + w3*(1- x[1])**2'),
-                lp('0'),
-                lp('0'),
-                lp('0'),
-                lp('&S * beta * x[1]'),
-                   ]
-
-border_left_operators = [
-    #border conditions
-    lambda s, _, u_bas, x, x_loc: int(x[0] > sol.area_lims[0, 0] + small) * int(x[0] < sol.area_lims[0, 1] - small)
-    * (u_bas([0, 1], 0))
-    * border_weight,
-    lambda s, _, u_bas, x, x_loc: int(x[0] > sol.area_lims[0, 0] + small) * int(x[0] < sol.area_lims[0, 1] - small)
-    * (u_bas([0, 1], 1))
-    * border_weight,
-    
-    lambda s, _, u_bas, x, x_loc: int(x[0] > sol.area_lims[0, 0] + small) * int(x[0] < sol.area_lims[0, 1] - small)
-    * (u_bas([0, 1], 3))
-    * border_weight,
-    
-    #lambda s, u_loc, u_bas, x, x_loc: 1*#int(x[0] > sol.area_lims[0, 0] + small) * int(x[0] < sol.area_lims[0, 1] - small)*
-    #int(x[1] > sol.area_lims[1, 1] - small)
-    #* ( u_bas([1, 0], 1) - u_loc([0,0],2) * u_bas([0,0],1) + 2 * u_bas([0,0],1) )#intS * I)
-    #* border_weight,
-    
-    lambda s, u_loc, u_bas, x, x_loc: 1*#int(x[0] > sol.area_lims[0, 0] + small) * int(x[0] < sol.area_lims[0, 1] - small)*
-    int(x[1] > sol.area_lims[1, 1] - small)
-    * u_bas([0, 0], 4) #intS * I)
-    * border_weight,
-    
-    lambda s, _, u_bas, x, x_loc: 1* #int(x[0] > sol.area_lims[0, 0] + small) * int(x[0] < sol.area_lims[0, 1] - small)
-    int(x[1] < sol.area_lims[1, 0] + small)
-    * (u_bas([0, 0], 2))
-    * border_weight,
-    #initial conditions
-    lambda s, _, u_bas, x, x_loc: int(x[0] < sol.area_lims[0, 0] + small)
-    * (u_bas([0, 0], 0))
-    * border_weight*100,
-    lambda s, _, u_bas, x, x_loc: int(x[0] < sol.area_lims[0, 0] + small)
-    * (u_bas([0, 0], 1))
-    * border_weight,
-    #terminal conditions
-    lambda s, _, u_bas, x, x_loc: int(x[0] > sol.area_lims[0, 1] - small)
-    * u_bas([0, 0], 3)
-    * border_weight,
+colloc_lines = [
+    '-( (d/dt) S ) + sigma /2 * (d/dx)^2 S - 1/2 * ( (d/dx) S * (d/dx) &psi + (d/dx) &S * (d/dx) psi + S * (d/dx)^2 &psi + &S * (d/dx)^2 psi ) - (d/dt) psi - (1/2 * ( (d/dx) psi * (d/dx) &psi )) = beta*x[1]*( &S * &I ) + 1/2 * ( (d/dx) &S * (d/dx) &psi + &S * (d/dx)^2 &psi ) ',
+    '(d/dt) I - &betaSg * I + gamma * I = w1*( &I )**2 + w2*x[1] * (0.5 + &I ) + w3*(1- x[1])**2',
+    '(d/dx) I = 0',
+    '(d/dx) betaSg = 0',
+    '(d/dx) betaS = 0'
 ]
 
-border_right_operators = [
-    #border conditions
-    lambda s, u, _, x, x_loc: 0 * border_weight,  # border condition for psi
-    lambda s, u, _, x, x_loc: 0 * border_weight,  # border condition for psi
-    lambda s, u, _, x, x_loc: 0 * border_weight,  # border condition for psi
-    lambda s, u, _, x, x_loc: u([0,0],2) * border_weight,  # border condition for psi
-    lambda s, u, _, x, x_loc: 0 * border_weight,  # border condition for psi
-    #initial conditions
-    lambda s, u, _, x, x_loc: int(x[0] < sol.area_lims[0, 0] + small)
-    * (initial_state(x))
-    * border_weight*100,
-    lambda s, u, _, x, x_loc: int(x[0] < sol.area_lims[0, 0] + small)
-    * 0.1
-    * border_weight,
-    #terminal conditions
-    lambda s, u, _, x, x_loc: 0 * border_weight,  # border condition for psi
-    #lambda s, u, _, x, x_loc: int(x[0] > sol.area_lims[0, 0] + small)
-    #* initial_state(x)
-    #* border_weight,  # border and initial cond for rho
-]
+borders_string = 'int(x[0] > sol.area_lims[0, 0] + small) * int(x[0] < sol.area_lims[0, 1] - small)'
+initial_string = 'int(x[0] < sol.area_lims[0, 0] + small)'
+terminal_string = 'int(x[0] > sol.area_lims[0, 1] - small)'
+border_lines = [
+    borders_string + '* (d/dx) S * border_weight = 0 * border_weight',
+    borders_string + '* (d/dx) I * border_weight = 0 * border_weight',
+    borders_string + '* (d/dx) psi * border_weight = 0 * border_weight',
+    initial_string + '* (d/dx) S * border_weight = 0.9 * border_weight',
+    initial_string + '* (d/dx) I * border_weight = 0.1 * border_weight',
+    terminal_string + '* (d/dx) psi * border_weight = 0 * border_weight',
+    'int(x[1] > sol.area_lims[1, 1] - small) * betaSg * border_weight = betaS * border_weight ',
+    'int(x[1] < sol.area_lims[1, 0] + small)* betaS* border_weight = 0',
+    ]
 
-colloc_ops = [colloc_left_operators, colloc_right_operators]
-border_ops = [border_left_operators, border_right_operators]
+colloc_ops = lp(colloc_lines, customs=customs)
+border_ops = lp(border_lines, customs=customs)
 
-
+'''
 settings_filename = "settings.yaml"
 
 
 with open(settings_filename, mode="r") as file:
     settings = yaml.safe_load(file)
+'''
 
 dots = np.linspace(-0.9,0.9,power)
 connect_points = np.array([[-1, i] for i in dots] + [[1, i] for i in dots]+
@@ -146,7 +94,6 @@ iteration_dict = {
     "points": points,
     "colloc_ops": colloc_ops,
     "border_ops": border_ops,
-    #"connect_ops": connect_ops,
 }
 
 import copy
@@ -174,8 +121,6 @@ for j in range(k):
     prev_eval = sol_eval(sol)
     A, b = sol.global_solve(
         solver="np",
-        #svd_threshold=1e-8,
-        #return_system=True,
         alpha=1e-8,
         **iteration_dict,
     )
