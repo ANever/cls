@@ -157,6 +157,7 @@ class Solution:
         points: np.array,
         colloc_ops,
         border_ops,
+        custom_points_dict=None,
         connect_ops=[],
     ) -> tuple:
         colloc_points, connect_points, border_points = points
@@ -208,6 +209,20 @@ class Solution:
             connect_points_for_use,
         )
         connect_weight = 1
+        
+        if custom_points_dict:
+            CP_for_use = []
+            for point in custom_points_dict['points']:
+                cell_num_point, local_point = self.localize(point, cells_closed_right)
+                if cell_num_point == cell_num:
+                    CP_for_use.append(local_point)
+            CP_for_use = np.array(CP_for_use)
+            CP_mat, CP_r = self.generate_subsystem(
+            custom_points_dict['ops'],
+            cell_num,
+            CP_for_use,
+            )
+        
         res_mat = utils.concat(utils.concat(colloc_mat, border_mat), connect_mat * connect_weight)
         res_right = utils.concat(utils.concat(colloc_r, border_r), connect_r * connect_weight)
 
@@ -297,7 +312,7 @@ class Solution:
                 )
                 return result
 
-            def u_loc(der, func=0):
+            def u_loc(der=[0], func=0):
                 eval_kwargs = {
                     "point": loc_point,
                     "der": der,
@@ -317,20 +332,20 @@ class Solution:
             # x = global_point
             loc_point = copy.deepcopy(point)
 
-            def u_loc(der, func_num=0):
+            def u_loc(der=[0], func=0):
                 return self.eval(
-                    loc_point, der, local=True, cell_num=cell_num, func=func_num
+                    loc_point, der, local=True, cell_num=cell_num, func=func
                 )  # for linearization purpses
 
             _dir = dir(loc_point)  # neigh_point = loc_point - 2 * dir(loc_point)
 
-            def u_nei(der, func_num=0):
+            def u_nei(der, func=0):
                 return self.eval(
                     loc_point - 2 * _dir,
                     der,
                     local=True,
                     cell_num=cell_num + _dir,
-                    func=func_num,
+                    func=func,
                 )
 
             return operator(self, u_loc, u_nei, global_point, loc_point)  # x

@@ -116,10 +116,11 @@ def plot(solution, n=100):
     grid = np.linspace(
         solution.area_lims[0, 0], solution.area_lims[0, 1], n, endpoint=False
     )
-    for i in range(len(grid)):
-        func[i] = solution.eval(grid[i], [0])
-    plt.plot(func)
-    plt.show()
+    for f in range(solution.n_funcs):
+        for i in range(len(grid)):
+            func[i] = solution.eval(grid[i], [0], f)
+        plt.plot(func)
+        plt.show()
 
 def plot2d(solution, n=100, x_lims=None, y_lims=None, func_num=0, derivatives=[0, 0]):
     func = np.zeros((n, n))
