@@ -4,7 +4,7 @@ import re
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from scipy.special import roots_legendre
-
+import numbers
 
 def lp(line, **kwargs):
     #print(line.split('='))
