@@ -6,6 +6,21 @@ import matplotlib.cm as cm
 from scipy.special import roots_legendre
 import numbers
 
+import json
+from json import JSONEncoder
+import numpy
+
+class NumpyArrayEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, numpy.ndarray):
+            return obj.tolist()
+        return JSONEncoder.default(self, obj)
+
+def dump_pars(params_to_save):
+    with open("data.json", "w") as f:
+        json.dump(params_to_save, f, cls=NumpyArrayEncoder)
+
+
 def lp(line, **kwargs):
     #print(line.split('='))
     splited = line.split('=')
@@ -15,6 +30,40 @@ def lp(line, **kwargs):
     right_operator = _lp(splited[1], **kwargs)
     return [left_operator, right_operator]
 
+
+def prepare_settings(settings):
+    settings['MODEL']['n_dims'] = len(settings['IN_VAR_NAMES'])
+    settings['MODEL']['n_funcs'] = len(settings['OUT_VAR_NAMES'])
+
+    customs = settings['CUSTOMS']
+    for key in customs.keys():
+        if isinstance(customs[key], str):
+            compile(customs[key], '<string>', 'eval')
+            customs[key] = eval(customs[key], locals() | customs)
+
+    for cond in ['COLLOC_OPS', 'BORDER_OPS']:
+        for side in ['left', 'right']:
+            for i, line in enumerate(settings[cond][side]):
+                settings[cond][side][i] = lp(line)
+
+    colloc_ops = list(settings['COLLOC_OPS'].values())
+    border_ops = list(settings['BORDER_OPS'].values())
+
+    connect_points = np.array(eval(settings['CONNECT_POINTS']))
+    border_points = connect_points
+
+    power = settings['MODEL']['power']
+    colloc_points = np.reshape(np.linspace(-1,1,power+2), (power+2,1))
+    points = [colloc_points, connect_points, border_points]
+
+    iteration_dict = {
+        "points": points,
+        "colloc_ops": colloc_ops,
+        "border_ops": border_ops,
+        #"connect_ops": connect_ops,
+    }
+
+    return settings, iteration_dict
 
 def _lp(line, function_list, variable_list, customs):
     splited = line.split(' ')

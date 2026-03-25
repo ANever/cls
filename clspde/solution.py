@@ -2,11 +2,11 @@ import numpy as np
 import copy
 import itertools
 
-import utils
-from utils import dir
+import .utils
+from .utils import dir
 
-from qr_solver import QR_solve, SVD_solve
-from basis import Basis
+from .qr_solver import QR_solve, SVD_solve
+from .basis import Basis
 
 class Solution:
     def __init__(
