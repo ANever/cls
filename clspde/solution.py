@@ -2,9 +2,8 @@ import numpy as np
 import copy
 import itertools
 
-import .utils
+import clspde.utils as utils
 from .utils import dir
-
 from .qr_solver import QR_solve, SVD_solve
 from .basis import Basis
 

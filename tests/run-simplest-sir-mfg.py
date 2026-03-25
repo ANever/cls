@@ -1,7 +1,8 @@
-from solution import Solution
-from utils import _lp, plot, eval_dict, prepare_settings
+from clspde.solution import Solution
+from clspde.utils import plot, eval_dict
+from clspde.prepare import from_file
+#from clspde.basis import Basis
 import copy
-from basis import Basis
 import itertools
 import numpy as np
 import copy
@@ -22,33 +23,18 @@ def sol_eval(sol, ts=ts, xs=xs):
 '''
 
 settings_filename = "settings/simplest_mfg.yaml"
-
-with open(settings_filename, mode="r") as file:
-    settings = yaml.safe_load(file)
-
-def lp(line, function_list=settings['OUT_VAR_NAMES'], variable_list =settings['IN_VAR_NAMES'], customs=customs):
-        res = _lp(line, function_list=function_list, variable_list=variable_list, customs=customs)
-        print('res', res)
-        return res
-
-settings, iteration_dict = prepare_settings(settings)
-sol = Solution(**eval_dict(settings['MODEL'], {'np':np}))
-sol.cells_coefs *= 0.0
+settings, sol, iteration_dict = from_file(settings_filename)
 
 n = 20
 ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 0.00001, n)
 
-
-
 k = 50
-#r = np.array((k * sol.cells_coefs.shape))
 for j in range(k):
     prev_coefs = copy.deepcopy(sol.cells_coefs)
     #prev_eval = sol_eval(sol)
     A, b = sol.global_solve(
         solver="np",
         #svd_threshold=1e-8,
-        #return_system=True,
         alpha=1e-4,
         **iteration_dict,
     )
