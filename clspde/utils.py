@@ -22,8 +22,6 @@ def dump_pars(params_to_save):
         json.dump(params_to_save, f, cls=NumpyArrayEncoder)
 
 
-
-
 def eval_dict(d, kwargs={}, recursion=0):
     if recursion == 0:
         for key in d.keys():

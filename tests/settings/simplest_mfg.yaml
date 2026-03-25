@@ -22,9 +22,9 @@ CUSTOMS:
     cost_inf: 4.
     gamma: 2
     S0: 0.7
-    c: 'lambda u_: np.abs(beta_max *( u_(func=3) - u_(func=2) ) *u_(func=1) / 2.)'
+    c: 'lambda u_: np.abs(beta_max *( uI - uS ) * I / 2.)'
     approximation: 'lambda u_: -6.63320111e-01 + np.sqrt(c(u_)) *8.92654544e-01 - c(u_) * 6.99385982e-02 + c(u_)**2* 2.97831057e-04 - c(u_)**3 * 1.08549568e-06 + c(u_)**4*1.68015701e-09 +np.exp(-c(u_))*  3.66041065e-02 + np.exp(-2*c(u_))*  4.74148560e-01'
-    c_sign: 'lambda u_: np.sign( - ( u_(func=3) - u_(func=2) ))'
+    c_sign: 'lambda u_: np.sign( - ( uI - uS ))'
     alpha: 'lambda u_: c_sign(u_) * approximation(u_)'
     beta: 'lambda u_: beta_max/(1+np.exp(-alpha(u_)))'
     small: 0.00001

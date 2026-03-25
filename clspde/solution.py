@@ -7,6 +7,18 @@ from .utils import dir
 from .qr_solver import QR_solve, SVD_solve
 from .basis import Basis
 
+'''
+def sol_eval(sol, ts=ts, xs=xs):
+    res_array = np.zeros((len(ts), len(xs)))
+    for i in range(len(ts)):
+        t = ts[i]
+        for j in range(len(xs)):
+            x = xs[j]
+            res_array[i, j] = sol.eval(np.array([t, x]), [0, 0])
+
+    return res_array
+'''
+
 class Solution:
     def __init__(
         self,
