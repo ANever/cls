@@ -25,11 +25,11 @@ for j in range(k):
     print(j,' | ', np.max(np.abs(prev_coefs - sol.cells_coefs)),' | ',)
 plot(sol)
 
-params_to_save = copy.deepcopy(params)
-params_to_save.pop("basis", None)
-params_to_save["coefs"] = sol.cells_coefs
+#params_to_save = copy.deepcopy(params)
+#params_to_save.pop("basis", None)
+#params_to_save["coefs"] = sol.cells_coefs
 
-dump_pars(pars_to_save)
+#dump_pars(pars_to_save)
 
 n = 20
 ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)

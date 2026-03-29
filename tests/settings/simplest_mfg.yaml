@@ -33,7 +33,7 @@ CUSTOMS:
 COLLOC_OPS:
   left: 
     - '- (d/dt) S - beta(u_loc) * ( S * &I ) '
-    - '- (d/dt) I + beta(u_loc) * ( S * &I ) - gamma * I '
+    - '- (d/dt) I + beta(u_loc) * ( S * &I ) - gamma * I '  
     - '- (d/dt) uS - ( beta(u_loc) * I * ( - uS + uI ))'
     - '- (d/dt) uI - ( -gamma * uI )'
   right: 
