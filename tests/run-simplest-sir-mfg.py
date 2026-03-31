@@ -23,16 +23,12 @@ for j in range(k):
     speed = 1
     sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs 
     print(j,' | ', np.max(np.abs(prev_coefs - sol.cells_coefs)),' | ',)
-plot(sol)
+#plot(sol)
 
 n = 20
 ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)
 points = [[t] for t in ts]
 vals = [[sol.eval(np.array([t]), [0], 1)] for t in ts]
-
-
-plt.plot(points, vals)
-plt.show()
 
 out_dict = {'points':points, 'data':vals}
 with open('colloc_solution_I.pkl', 'wb') as out_file:
