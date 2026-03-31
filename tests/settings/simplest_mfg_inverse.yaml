@@ -29,24 +29,22 @@ CUSTOMS:
     beta: 'lambda u_: 1/(1+np.exp(-alpha(u_)))'
     small: 0.00001
     border_weight: 1.
-    
-    I_info: 'lambda x: '
 
 COLLOC_OPS:
   left:
     - '- (d/dt) S - beta(u_loc) * ( beta_max * ( &S * &I ) + &beta_max * ( S * &I ) + &beta_max * ( &S * I ))'
     - '- (d/dt) I + beta(u_loc) * ( beta_max * ( &S * &I ) + &beta_max * ( S * &I ) + &beta_max * ( &S * I )) - gamma * I '  
-    - '- (d/dt) uS - ( &beta_max * beta(u_loc) * &I * ( - uS + uI ))'
+    - '- (d/dt) uS - beta(u_loc) *( &beta_max * &I * ( - uS + uI ) + beta_max * &I * ( - &uS + &uI ) + &beta_max * I * ( - &uS + &uI ) )'
     - '- (d/dt) uI - ( -gamma * uI )'
-    - ' (d/dt) beta_max '
+    - '2*( (d/dt) beta_max )'
     - ' I '
   right: 
-    - '- beta(u_loc) * &beta_max * ( &S * &I )'
-    - 'beta(u_loc) * &beta_max * ( &S * &I )'
-    - 'alpha(u_loc)**2'
+    - '- 2 * beta(u_loc) * &beta_max * ( &S * &I )'
+    - '2 * beta(u_loc) * &beta_max * ( &S * &I )'
+    - 'alpha(u_loc)**2 - 2 * beta(u_loc) * &beta_max * &I * ( - &uS + &uI )'
     - 'cost_inf'
     - '0'
-    - 'I_info(x)
+    - 'I_info(x)'
 
 BORDER_OPS:
   left:
@@ -61,3 +59,4 @@ BORDER_OPS:
     - '0 * border_weight'
 
 CONNECT_POINTS: '[[1.],[-1.]]'
+ 
