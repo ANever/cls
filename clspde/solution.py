@@ -492,7 +492,7 @@ class Solution:
         return res_mat, res_right
 
     def colloc_points_filter(self, points, cell_num):
-            return points
+        return points
 
     def border_points_filter(self, points, cell_num):
         left_borders = cell_num == np.zeros(self.n_dims)

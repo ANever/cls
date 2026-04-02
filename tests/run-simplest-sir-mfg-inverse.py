@@ -38,8 +38,8 @@ def eval_error():
     er = [0]*5
     for func in range(4):
         for t in ts:
-            er[func] += (sol.eval([t],[0],func) - sol_mes.eval([t],[0],func))**2
-        er[4] = sol.eval([0],[0],func=4)
+            er[func] += float(sol.eval([t],[0],func) - sol_mes.eval([t],[0],func))**2
+        er[4] = sol.eval([0.2],[0],func=4)
     return er
 
 
@@ -53,16 +53,19 @@ for j in range(k):
         alpha=0,#1e-4,
         **iteration_dict,
     )
-    speed = 0.8
-    sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs 
-    print(j,' | ', np.max(np.abs(prev_coefs - sol.cells_coefs)),' | ', eval_error())
+    speed = 0.5
+    sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs
+    raw_res = np.linalg.solve(A.T @A, A.T @b)
+    true_resudual = np.sqrt(np.sum((A @ raw_res - b)**2))/len(b)
+    coef_change = np.max(np.abs(prev_coefs - sol.cells_coefs))
+    print(j,' | ', coef_change , ' | ', true_resudual,' | ', eval_error())
 plot(sol)
 
 #params_to_save = copy.deepcopy(params)
 #params_to_save.pop("basis", None)
 #params_to_save["coefs"] = sol.cells_coefs
 
-dump_pars(pars_to_save)
+#dump_pars(pars_to_save)
 
 n = 20
 ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)

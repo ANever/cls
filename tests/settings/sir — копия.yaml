@@ -1,0 +1,46 @@
+MODEL:    
+  dim_sizes: np.array([30])
+  area_lims: np.array([[-1., 1.]])
+  power: 5
+
+WEIGHTS:
+    border_weight: 200
+    colloc_weight: 1.5
+    connect_weights: np.array([20, 10]) * 0.75
+
+NS:
+  nx: [100]
+
+IN_VAR_NAMES:
+ [t]
+
+OUT_VAR_NAMES:
+ ['S', 'I']
+
+CUSTOMS:
+    beta_max: 10. #'lambda u_: u_(func=4)', #20,
+    cost_inf: 4.
+    gamma: 2.
+    border_weight: 1
+    S0: 0.7
+    border: 'lambda sol, x, variable_num, border_side: border_weight * int(abs(x[variable_num] - sol.area_lims[variable_num, border_side]) < 1e-8)'
+    
+COLLOC_OPS:
+  left: 
+    - '- (d/dt) S - beta_max * (( S * &I ) + ( &S * I ))'
+    - '- (d/dt) I + beta_max * (( S * &I ) + ( &S * I )) - gamma * I '  
+    
+  right: 
+    - '- beta_max * (( &S * &I ))'
+    - '  beta_max * (( &S * &I ))'
+    
+BORDER_OPS:
+  left:
+    - 'border(sol,x,0,0) * S'
+    - 'border(sol,x,0,0) * I'
+  right: 
+    - 'border(sol,x,0,0) * ( S0 )'
+    - 'border(sol,x,0,0) * ( 1 - S0 )'
+  
+
+CONNECT_POINTS: '[[1.],[-1.]]'

@@ -33,7 +33,7 @@ def prepare_settings(settings):
     border_points = connect_points
 
     power = settings['MODEL']['power']
-    colloc_points = np.reshape(np.linspace(-1,1,power+2), (power+2,1))
+    colloc_points = np.reshape(np.linspace(-1,1,power+1), (power+1,1))
     points = [colloc_points, connect_points, border_points]
 
     iteration_dict = {

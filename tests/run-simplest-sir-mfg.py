@@ -17,13 +17,19 @@ for j in range(k):
     A, b = sol.global_solve(
         solver="np",
         #svd_threshold=1e-8,
-        alpha=1e-4,
+        alpha=0,
         **iteration_dict,
     )
-    speed = 1
-    sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs 
-    print(j,' | ', np.max(np.abs(prev_coefs - sol.cells_coefs)),' | ',)
-#plot(sol)
+    speed = 0.5
+    sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs
+    residual = np.sqrt(np.sum((A @ np.ravel(sol.cells_coefs, 'C') - b)**2))/len(b)
+    raw_res = np.linalg.solve(A.T @A, A.T @b)
+    true_resudual = np.sqrt(np.sum((A @ raw_res - b)**2))/len(b)
+    coef_change = np.max(np.abs(prev_coefs - sol.cells_coefs))
+    print(j,' | ', coef_change ,' | ', residual, ' | ', true_resudual)
+    if coef_change < 1e-7:
+        break
+plot(sol)
 
 n = 20
 ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)

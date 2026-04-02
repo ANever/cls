@@ -18,7 +18,7 @@ OUT_VAR_NAMES:
  ['S', 'I', 'uS', 'uI', 'beta_max']
 
 CUSTOMS:
-    #beta_max: 20. #'lambda u_: u_(func=4)', #20,
+    #beta_max: 20.
     cost_inf: 4.
     gamma: 2
     S0: 0.7
@@ -29,6 +29,8 @@ CUSTOMS:
     beta: 'lambda u_: 1/(1+np.exp(-alpha(u_)))'
     small: 0.00001
     border_weight: 1.
+    
+    border: 'lambda sol, x, variable_num, border_side: border_weight * int(abs(x[variable_num] - sol.area_lims[variable_num, border_side]) < 1e-8)'
 
 COLLOC_OPS:
   left:
@@ -37,26 +39,26 @@ COLLOC_OPS:
     - '- (d/dt) uS - beta(u_loc) *( &beta_max * &I * ( - uS + uI ) + beta_max * &I * ( - &uS + &uI ) + &beta_max * I * ( - &uS + &uI ) )'
     - '- (d/dt) uI - ( -gamma * uI )'
     - '2*( (d/dt) beta_max )'
-    - ' I '
+    - '20 * I '
   right: 
     - '- 2 * beta(u_loc) * &beta_max * ( &S * &I )'
     - '2 * beta(u_loc) * &beta_max * ( &S * &I )'
     - 'alpha(u_loc)**2 - 2 * beta(u_loc) * &beta_max * &I * ( - &uS + &uI )'
     - 'cost_inf'
     - '0'
-    - 'I_info(x)'
+    - '20 * I_info(x)'
 
 BORDER_OPS:
   left:
-    - 'int(x[0] < sol.area_lims[0, 0] + small) * (u_bas([0], 0)) * border_weight'
-    - 'int(x[0] < sol.area_lims[0, 0] + small) * (u_bas([0], 1)) * border_weight'
-    - 'int(x[0] > sol.area_lims[0, 1] - small) * (u_bas([0], 2)) * border_weight'
-    - 'int(x[0] > sol.area_lims[0, 1] - small) * (u_bas([0], 3)) * border_weight'
+    - 'border(sol,x,0,0) * S'
+    - 'border(sol,x,0,0) * I'
+    - 'border(sol,x,0,1) * uS'
+    - 'border(sol,x,0,1) * uI'
   right: 
-    - 'int(x[0] < sol.area_lims[0, 0] + small) * ( S0 ) * border_weight'
-    - 'int(x[0] < sol.area_lims[0, 0] + small) * ( 1 - S0 ) * border_weight'
-    - '0 * border_weight'
-    - '0 * border_weight'
+    - 'border(sol,x,0,0) * ( S0 )'
+    - 'border(sol,x,0,0) * ( 1 - S0 )'
+    - 'border(sol,x,0,1) * 0'
+    - 'border(sol,x,0,1) * 0.2'
 
 CONNECT_POINTS: '[[1.],[-1.]]'
  
