@@ -50,10 +50,10 @@ for j in range(k):
     A, b = sol.global_solve(
         solver="np",
         #svd_threshold=1e-8,
-        alpha=0,#1e-4,
+        alpha=0, #1e-7,
         **iteration_dict,
     )
-    speed = 0.5
+    speed = 0.7
     sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs
     raw_res = np.linalg.solve(A.T @A, A.T @b)
     true_resudual = np.sqrt(np.sum((A @ raw_res - b)**2))/len(b)
