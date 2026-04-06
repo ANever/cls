@@ -6,7 +6,7 @@ MODEL:
 WEIGHTS:
     border_weight: 200
     colloc_weight: 1.5
-    connect_weights: np.array([20, 10]) * 0.75
+    connect_weights: np.array([15, 6])
 
 NS:
   nx: [100, 100]

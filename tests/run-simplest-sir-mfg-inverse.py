@@ -44,6 +44,9 @@ def eval_error():
 
 
 k = 50
+
+true_resudual = np.zeros(k)
+all_errors = np.zeros(k,5)
 for j in range(k):
     prev_coefs = copy.deepcopy(sol.cells_coefs)
     #prev_eval = sol_eval(sol)
@@ -56,9 +59,12 @@ for j in range(k):
     speed = 0.7
     sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs
     raw_res = np.linalg.solve(A.T @A, A.T @b)
-    true_resudual = np.sqrt(np.sum((A @ raw_res - b)**2))/len(b)
+    true_resudual[j] = np.sqrt(np.sum((A @ raw_res - b)**2))/len(b)
+    errors = eval_error()
+    for i in len(errors)
+        all_errors[j] = errors
     coef_change = np.max(np.abs(prev_coefs - sol.cells_coefs))
-    print(j,' | ', coef_change , ' | ', true_resudual,' | ', eval_error())
+    print(j,' | ', coef_change , ' | ', true_resudual,' | ', errors)
 plot(sol)
 
 #params_to_save = copy.deepcopy(params)
