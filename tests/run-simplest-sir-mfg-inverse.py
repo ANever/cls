@@ -73,10 +73,9 @@ for j in range(k):
 import pandas as pd
 col_names = ['err_S', 'err_I', 'err_uS','err_uI', 'beta', 'residual']
 logs = pd.DataFrame(all_errors, columns=col_names)
-print(logs)
 logs = logs.dropna()
+logs['index']=logs.index
 logs.to_csv('logs.csv', sep=',')
-print(logs)
 
 #params_to_save = copy.deepcopy(params)
 #params_to_save.pop("basis", None)
