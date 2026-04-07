@@ -40,14 +40,14 @@ def eval_error():
         for t in ts:
             inc = sol.eval([t],[0],func) - sol_mes.eval([t],[0],func)
             er[func] += float(inc)**2
-        er[4] = sol.eval([0.2],[0],func=4)
+        er[4] = abs(sol.eval([0.2],[0],func=4)-20)
     return er
 
 
-k = 50
+k = 100
 
-true_resudual = np.zeros(k)
-all_errors = np.zeros((k,5))
+true_resudual = np.empty(k)*np.nan
+all_errors = np.empty((k,6))*np.nan
 for j in range(k):
     prev_coefs = copy.deepcopy(sol.cells_coefs)
     #prev_eval = sol_eval(sol)
@@ -62,10 +62,21 @@ for j in range(k):
     raw_res = np.linalg.solve(A.T @A, A.T @b)
     true_resudual[j] = np.sqrt(np.sum((A @ raw_res - b)**2))/len(b)
     errors = eval_error()
-    all_errors[j] = errors
+    all_errors[j,:len(errors)] = errors
+    all_errors[j,-1] = true_resudual[j]
     coef_change = np.max(np.abs(prev_coefs - sol.cells_coefs))
     print(j,' | ', coef_change , ' | ', true_resudual[j],' | ', errors)
-plot(sol)
+    if coef_change<1e-7:
+        break
+#plot(sol)
+
+import pandas as pd
+col_names = ['err_S', 'err_I', 'err_uS','err_uI', 'beta', 'residual']
+logs = pd.DataFrame(all_errors, columns=col_names)
+print(logs)
+logs = logs.dropna()
+logs.to_csv('logs.csv', sep=',')
+print(logs)
 
 #params_to_save = copy.deepcopy(params)
 #params_to_save.pop("basis", None)
@@ -78,9 +89,9 @@ ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_l
 points = [[t] for t in ts]
 vals = [[sol.eval(np.array([t]), [0], 1)] for t in ts]
 
-import matplotlib.pyplot as plt
-plt.plot(points, vals)
-plt.show()
+#import matplotlib.pyplot as plt
+#plt.plot(points, vals)
+#plt.show()
 
 out_dict = {'points':points, 'data':vals}
 with open('colloc_solution_I.pkl', 'wb') as out_file:

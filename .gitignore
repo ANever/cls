@@ -1,7 +1,7 @@
 # output
 *.pdf
 *.pkl
-
+tests/*.csv
 
 *.py[cod]
 *$py.class
