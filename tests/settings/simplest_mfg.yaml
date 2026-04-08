@@ -59,3 +59,13 @@ BORDER_OPS:
 
 
 CONNECT_POINTS: '[[1.],[-1.]]'
+
+
+DATA_OPS:
+  left:
+    - 'I*0'
+  right: 
+    - '0'
+
+DATA_POINTS:
+    '[]'

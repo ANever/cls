@@ -40,14 +40,14 @@ COLLOC_OPS:
     - '- (d/dt) uS - beta(u_loc) *( &beta_max * &I * ( - uS ) + beta_max * &I * ( - &uS + &uI ) + &beta_max * I * ( - &uS + &uI ) )'
     - '- (d/dt) uI - ( -gamma * uI )'
     - '2*( (d/dt) beta_max )'
-    - '2 * I '
+    #- '2 * I '
   right:
     - '- 2 * beta(u_loc) * &beta_max * ( &S * &I )'
     - '2 * beta(u_loc) * &beta_max * ( &S * &I )'
     - 'alpha(u_loc)**2 - 2 * &beta_max * beta(u_loc) * ( &I * ( - &uS + &uI / 2 - w / 2))'
     - 'cost_inf'
     - '0'
-    - '2* I_info(x)'
+    #- '2* I_info(x)'
 
 BORDER_OPS:
   left:
@@ -65,3 +65,12 @@ BORDER_OPS:
 
 CONNECT_POINTS: '[[1.],[-1.]]'
  
+DATA_OPS:
+  left:
+    - '2 * I '
+  right: 
+    - '2* I_info(x)' #decklared in code
+
+DATA_POINTS:
+    None # declared in code #utils.f_collocation_points(sol.power)
+    #'[[-0.3],[0.3],[0.]]'

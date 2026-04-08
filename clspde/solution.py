@@ -434,14 +434,14 @@ class Solution:
         return connect_ops
 
     def generate_global_system(
-        self, points: np.array, colloc_ops, border_ops, connect_ops=[], connect_weight=1
+        self, points: np.array, colloc_ops, border_ops, data_ops=[], connect_ops=[], connect_weight=1
     ) -> tuple:
-        colloc_points, connect_points, border_points = points
+        colloc_points, connect_points, border_points, data_points = points
 
         # default connection
         if len(connect_ops) == 0:
             connect_ops = self.default_connect_ops()
-
+        
         # default colloc points
         if len(colloc_points) == 0:
             colloc_points = utils.f_collocation_points(self.power)
@@ -452,6 +452,8 @@ class Solution:
         num_of_vars = self.cell_size  
         
         def generate_global_condition_mat(points, ops, points_filter, _type=None):
+            
+            #if _type == "data":
             num_of_lines = len(points) * len(ops[0])
             num_of_eqs = len(all_cells) * num_of_lines
             
@@ -463,7 +465,7 @@ class Solution:
                 cell_ind = self.cell_index(cell_num)
                 slice0 = lambda x: slice(cell_ind * num_of_lines, cell_ind * num_of_lines + x, None) 
                 slice1 = slice(cell_ind * num_of_vars, (cell_ind + 1) * num_of_vars, None)
-                if _type is None or _type == 'default':
+                if _type is None or _type in ['default', 'data']:
                     _mat, _r = self.generate_subsystem(ops, cell_num, points_for_use)
                     global_mat[slice0(_mat.shape[0]), slice1] = _mat
                     global_right[slice0(_mat.shape[0])] = _r
@@ -476,15 +478,12 @@ class Solution:
         global_colloc_mat, global_colloc_r = generate_global_condition_mat(colloc_points, colloc_ops, self.colloc_points_filter)
         global_border_mat, global_border_r = generate_global_condition_mat(border_points, border_ops, self.border_points_filter)
         global_connect_mat, global_connect_r = generate_global_condition_mat(connect_points, connect_ops, self.connect_points_filter, _type='connect')
+        global_data_mat, global_data_r = generate_global_condition_mat(data_points, data_ops, self.data_points_filter)
         
-        res_mat = utils.concat(
-            utils.concat(global_colloc_mat, global_border_mat),
-            global_connect_mat * connect_weight,
-        )
-        res_right = utils.concat(
-            utils.concat(global_colloc_r, global_border_r),
-            global_connect_r * connect_weight,
-        )
+        res_mat = utils.concat([global_colloc_mat, global_border_mat,
+                        global_connect_mat * connect_weight, global_data_mat])
+        res_right = utils.concat([global_colloc_r, global_border_r, 
+                        global_connect_r * connect_weight, global_data_r])
 
         notnull_ind = np.sum(res_mat != 0, axis=1) != 0
         res_mat = res_mat[notnull_ind]
@@ -493,7 +492,17 @@ class Solution:
 
     def colloc_points_filter(self, points, cell_num):
         return points
-
+    
+    def data_points_filter(self, points, cell_num):
+        local_points = np.zeros(points.shape)
+        mask = [False]*len(points)
+        for i, point in enumerate(points):
+            cell, local_point = self.localize(point)
+            if cell == cell_num: 
+                mask[i]=True
+                local_points[i]=local_point
+        return local_points[mask]
+    
     def border_points_filter(self, points, cell_num):
         left_borders = cell_num == np.zeros(self.n_dims)
         right_borders = cell_num == (self.dim_sizes - 1)

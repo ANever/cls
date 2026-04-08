@@ -18,28 +18,33 @@ def prepare_settings(settings):
     
     def lp(line, function_list=settings['OUT_VAR_NAMES'], variable_list = settings['IN_VAR_NAMES'], customs=customs):
             res = _lp(line, function_list=function_list, variable_list=variable_list, customs=customs)
-            print('res', res)
             return res
-            
-    for cond in ['COLLOC_OPS', 'BORDER_OPS']:
+    
+    #print(settings)
+    for cond in ['COLLOC_OPS', 'BORDER_OPS', 'DATA_OPS']:
         for side in ['left', 'right']:
             for i, line in enumerate(settings[cond][side]):
                 settings[cond][side][i] = lp(line)
 
     colloc_ops = list(settings['COLLOC_OPS'].values())
     border_ops = list(settings['BORDER_OPS'].values())
+    data_ops = list(settings['DATA_OPS'].values())
 
     connect_points = np.array(eval(settings['CONNECT_POINTS']))
     border_points = connect_points
-
+    try:
+        data_points = np.array(eval(settings['DATA_POINTS']))
+    except:
+        data_points = settings['DATA_POINTS']
     power = settings['MODEL']['power']
     colloc_points = np.reshape(np.linspace(-1,1,power+1), (power+1,1))
-    points = [colloc_points, connect_points, border_points]
+    points = [colloc_points, connect_points, border_points, data_points]
 
     iteration_dict = {
         "points": points,
         "colloc_ops": colloc_ops,
         "border_ops": border_ops,
+        "data_ops": data_ops,
         #"connect_ops": connect_ops,
     }
 
@@ -108,8 +113,6 @@ def _lp(line, function_list, variable_list, customs):
             ops_stack = []
         else:
             res += splited[i]
-    
-    print(res)
     res = compile(res, '<string>', 'eval')
     return lambda _self, u_loc, u_bas, x, x_loc: eval(res, customs | {'sol':_self, 
                                                  'u_bas': u_bas, 'u_loc': u_loc, 

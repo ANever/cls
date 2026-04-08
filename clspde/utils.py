@@ -36,7 +36,13 @@ def eval_dict(d, kwargs={}, recursion=0):
         return d
 
 
-def concat(a: np.array, b: np.array):
+def concat(args):
+    if len(args) == 2:
+        return _concat(args[0], args[1])
+    else:
+        return _concat(args[0], concat(args[1:]))
+        
+def _concat(a: np.array, b: np.array):
     a = np.array(a)
     b = np.array(b)
     if b.size == 0:
