@@ -126,11 +126,11 @@ for i_noise, noise_lvl in enumerate(noise_lvl_set):
                 break
         #plot(sol)
 
-    col_names = ['err_S', 'err_I', 'err_uS','err_uI', 'beta', 'residual', 'residual_S', 'residual_I', 'residual_uS', 'residual_uI',] #'residual_initial', 'residual_terminal']
-    logs = pd.DataFrame(all_errors, columns=col_names)
-    logs = logs.dropna()
-    logs['index']=logs.index
-    logs.to_csv('logs'+str(i_noise) + '_' + str(i_data) + '.csv', sep=',')
+        col_names = ['err_S', 'err_I', 'err_uS','err_uI', 'beta', 'residual', 'residual_S', 'residual_I', 'residual_uS', 'residual_uI',] #'residual_initial', 'residual_terminal']
+        logs = pd.DataFrame(all_errors, columns=col_names)
+        logs = logs.dropna()
+        logs['index']=logs.index
+        logs.to_csv('logs'+str(i_noise) + '_' + str(i_data) + '.csv', sep=',')
 
 n = 20
 ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)
