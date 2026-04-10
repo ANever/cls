@@ -33,39 +33,43 @@ CUSTOMS:
     
     border: 'lambda sol, x, variable_num, border_side: border_weight * int(abs(x[variable_num] - sol.area_lims[variable_num, border_side]) < 1e-8)'
 
-COLLOC_OPS:
-  left: 
-    - '- (d/dt) S - beta(u_loc) * (( S * &I ) + ( &S * I )) '
-    - '- (d/dt) I + beta(u_loc) * (( S * &I ) + ( &S * I )) - gamma * I '  
-    - '- (d/dt) uS - ( beta(u_loc) * ( &I * ( - uS + uI ) + I * ( - &uS + &uI )))'
-    - '- (d/dt) uI - ( -gamma * uI )'
-  right: 
-    - '- beta(u_loc) * (( &S * &I ))'
-    - 'beta(u_loc) * (( &S * &I ))'
-    - 'alpha(u_loc)**2 - beta(u_loc) * ( &I * ( - &uS + &uI - w))'
-    - 'cost_inf'
 
-BORDER_OPS:
-  left:
-    - 'border(sol,x,0,0) * S'
-    - 'border(sol,x,0,0) * I'
-    - 'border(sol,x,0,1) * uS'
-    - 'border(sol,x,0,1) * uI'
-  right: 
-    - 'border(sol,x,0,0) * ( S0 )'
-    - 'border(sol,x,0,0) * ( 1 - S0 )'
-    - 'border(sol,x,0,1) * 0'
-    - 'border(sol,x,0,1) * 0'
-
-
-CONNECT_POINTS: '[[1.],[-1.]]'
-
-
-DATA_OPS:
-  left:
-    - 'I*0'
-  right: 
-    - '0'
-
-DATA_POINTS:
-    '[]'
+CONDITIONS:
+    pde:
+      left: 
+        - '- (d/dt) S - beta(u_loc) * (( S * &I ) + ( &S * I )) '
+        - '- (d/dt) I + beta(u_loc) * (( S * &I ) + ( &S * I )) - gamma * I '  
+        - '- (d/dt) uS - ( beta(u_loc) * ( &I * ( - uS + uI ) + I * ( - &uS + &uI )))'
+        - '- (d/dt) uI - ( -gamma * uI )'
+      right: 
+        - '- beta(u_loc) * (( &S * &I ))'
+        - 'beta(u_loc) * (( &S * &I ))'
+        - 'alpha(u_loc)**2 - beta(u_loc) * ( &I * ( - &uS + &uI - w))'
+        - 'cost_inf'
+      points: default
+    
+    border:
+      left:
+        - 'border(sol,x,0,0) * S'
+        - 'border(sol,x,0,0) * I'
+        - 'border(sol,x,0,1) * uS'
+        - 'border(sol,x,0,1) * uI'
+      right: 
+        - 'border(sol,x,0,0) * ( S0 )'
+        - 'border(sol,x,0,0) * ( 1 - S0 )'
+        - 'border(sol,x,0,1) * 0'
+        - 'border(sol,x,0,1) * 0'
+      points: '[[1.],[-1.]]'
+      type: border
+    
+    #data:
+    #  left:
+    #    - 'I*0'
+    #  right: 
+    #    - '0'
+    #  points: default
+    #  type: data
+    
+    #connect:
+    #  type: connect
+      

@@ -469,12 +469,12 @@ class Solution:
     def default_colloc_points(self):
         match self.n_dims:
             case 1:
-                x = np.linspace(-1,1,self.power)
+                x = utils.f_collocation_points(self.power+1) #np.linspace(-1,1,self.power+2)
                 return x.reshape((-1,1))
             case 2:
                 points = []
                 #for i in range(self.n_dims):
-                x = np.linspace(-1,1,self.power)
+                x = np.linspace(-1,1,self.power+2)
                 X, Y = np.meshgrid(x, x)
                 points = np.vstack([X.ravel(), Y.ravel()])
                 return points
@@ -520,14 +520,15 @@ class Solution:
                 
                 slice0 = lambda x: slice(cell_ind * num_of_lines, cell_ind * num_of_lines + x, None) 
                 slice1 = slice(cell_ind * num_of_vars, (cell_ind + 1) * num_of_vars, None)
-                if condition['type'] is None or condition['type'] in ['default', 'border']:
-                    _mat, _r = self.generate_subsystem(ops, cell_num, points_for_use)
-                    global_mat[slice0(_mat.shape[0]), slice1] = _mat
-                    global_right[slice0(_mat.shape[0])] = _r
-                elif condition['type'] =='connect':
+                if condition['type'] =='connect':
                     connect_left_operators, connect_right_operators = ops
                     _mat = self.generate_connection_couple(ops,cell_num,points_for_use)
                     global_mat[slice0(_mat.shape[0])] = _mat
+                else:
+                    _mat, _r = self.generate_subsystem(ops, cell_num, points_for_use)
+                    global_mat[slice0(_mat.shape[0]), slice1] = _mat
+                    global_right[slice0(_mat.shape[0])] = _r
+                
             return global_mat, global_right
         
         res_mat = None
