@@ -4,7 +4,47 @@ import yaml
 import re 
 import numpy as np
 
+
 def prepare_settings(settings):
+    settings['MODEL']['n_dims'] = len(settings['IN_VAR_NAMES'])
+    settings['MODEL']['n_funcs'] = len(settings['OUT_VAR_NAMES'])
+
+    customs = settings['CUSTOMS']
+    for key in customs.keys():
+        if isinstance(customs[key], str):
+            for i, var in enumerate(settings['OUT_VAR_NAMES']):
+                 customs[key] = customs[key].replace(' '+var+' ', 'u_(func='+str(i)+')')
+            compile(customs[key], '<string>', 'eval')
+            customs[key] = eval(customs[key], locals() | customs | {'np':np})
+    
+    def lp(line, function_list=settings['OUT_VAR_NAMES'], variable_list = settings['IN_VAR_NAMES'], customs=customs):
+            res = _lp(line, function_list=function_list, variable_list=variable_list, customs=customs)
+            return res
+    
+    #print(settings)
+    conditions_dict = settings['CONDITIONS']
+    for key in conditions_dict.keys():
+        for side in ['left', 'right']:
+            for i, line in enumerate(conditions_dict[key][side]):
+                conditions_dict[key][side][i] = lp(line)
+        try:
+            conditions_dict[key]['points'] = np.array(eval(conditions_dict[key]['points']))
+        except :
+            pass
+    ######--------######
+    
+    power = settings['MODEL']['power']
+    
+    #colloc_points = np.reshape(np.linspace(-1,1,power+1), (power+1,1))
+    #points = [colloc_points, connect_points, border_points, data_points]
+
+    iteration_dict = {
+        "conditions_dict": conditions_dict
+    }
+
+    return settings, iteration_dict
+
+def prepare_settings_old(settings):
     settings['MODEL']['n_dims'] = len(settings['IN_VAR_NAMES'])
     settings['MODEL']['n_funcs'] = len(settings['OUT_VAR_NAMES'])
 

@@ -50,6 +50,10 @@ class Solution:
             periodic = [False]* self.n_dims
         self.periodic = periodic
         
+        inds = [list(range(size)) for size in self.dim_sizes]
+        self.all_cells = list(itertools.product(*inds))
+        
+        
     def init_grid(self) -> None:
         self.cells_shape = tuple(
             [self.n_funcs] + list(self.dim_sizes) + [self.power] * self.n_dims
@@ -58,15 +62,21 @@ class Solution:
         self.cell_size = self.n_funcs * (self.power**self.n_dims)
 
     def cell_index(self, cell_num):
-        if self.n_dims == 2:
-            cell_ind = (
-                cell_num[1] + cell_num[0] * self.dim_sizes[1]
-            )  # + cell_num[2] * prod(self.dim_sizes[:2]...
-        elif self.n_dims == 1:
-            cell_ind = cell_num[0]
+        cell_num = np.array(cell_num)
+        self.dim_sizes = np.array(self.dim_sizes)
+        #print((cell_num < self.dim_sizes), cell_num >= np.zeros(len(self.dim_sizes)))
+        if ((cell_num < self.dim_sizes).all() and (cell_num >= np.zeros(len(self.dim_sizes))).all()):
+            if self.n_dims == 2:
+                cell_ind = (
+                    cell_num[1] + cell_num[0] * self.dim_sizes[1]
+                )  # + cell_num[2] * prod(self.dim_sizes[:2]...
+            elif self.n_dims == 1:
+                cell_ind = cell_num[0]
+            else:
+                raise LookupError
+            return cell_ind
         else:
-            raise LookupError
-        return cell_ind
+            return None
 
     def localize(
         self, global_point: np.array, cells_closed_right: bool = False
@@ -138,8 +148,8 @@ class Solution:
         cells_closed_right: bool = False,
     ) -> float:
         """
-        x - np.array(n_dim, float)
-        derivatives - np.array(n_dim, int)
+        x - np.array(n_dims, float)
+        derivatives - np.array(n_dims, int)
         evaluation of solution function with argument x and list of partial derivatives
         """
         if local:
@@ -174,12 +184,16 @@ class Solution:
         colloc_points, connect_points, border_points = points
 
         # default connection
-        if len(connect_ops) == 0:
-            connect_ops = self.default_connect_ops([1, 1])
-
+        #if len(connect_ops) == 0:
+        #    connect_ops = self.default_connect_ops([1, 1])
+        
+        if not(check_connect_present(conditions)):
+            # add connection_operators
+            conditions_list['_default_connect'] = self.default_connect_cond()
+        
         # default colloc points
-        if len(colloc_points) == 0:
-            colloc_points = utils.f_collocation_points(self.power)
+        #if len(colloc_points) == 0:
+        #    colloc_points = utils.f_collocation_points(self.power)
 
         colloc_mat, colloc_r = self.generate_subsystem(
             colloc_ops, cell_num, colloc_points
@@ -188,22 +202,17 @@ class Solution:
         left_borders = cell_num == np.zeros(self.n_dims)
         right_borders = cell_num == (self.dim_sizes - 1)
 
-        left_border_for_use = np.array([
-            np.logical_and(point == -1, left_borders).any() for point in border_points
-        ])
-        right_border_for_use = np.array([
-            np.logical_and(point == 1, right_borders).any() for point in border_points
-        ])
-        border_points_for_use = border_points[
-            np.logical_or(left_border_for_use, right_border_for_use)
-        ]
-
+        
+        border_points_for_use = self.border_points_filter(self, border_points, cell_num)
+        
         border_mat, border_r = self.generate_subsystem(
             border_ops,
             cell_num,
             border_points_for_use,
         )
-
+        
+        connect_points_for_use = self.connect_points_filter(self, connect_points, cell_num)
+        
         left_connect_for_use = np.array([
             np.logical_and(point == -1, ~left_borders).any() for point in connect_points
         ])
@@ -398,6 +407,7 @@ class Solution:
             connect_line = np.zeros((len(left_ops[0]), np.prod(self.cells_coefs.shape)))
             index = self.cell_index(cell_num)
             neigh_index = self.cell_index(neigh)
+            
             connect_line[:, index * self.cell_size : (index + 1) * self.cell_size] = (
                 first_line
             )
@@ -407,90 +417,145 @@ class Solution:
 
             connect_mat[len(left_ops[0]) * i : len(left_ops[0]) * (i+1)] = connect_line
         return np.array(connect_mat)
-
-    def default_connect_ops(self, weights=[100, 10]):
+        
+    def default_connect_cond(self, weights=[100, 10]):
+        condition = {'type':'connect', 'points':self.default_connect_points()}
         k1, k2 = weights
-        connect_left_operators = []
-        connect_right_operators = []
+        left_operators = []
+        right_operators = []
 
         def dir(point: np.array) -> np.array:
             direction = (np.abs(point) == 1) * (np.sign(point))
             return np.array(direction, dtype=int)
 
         for func_num in range(self.n_funcs):
-            connect_left_operators += [
-                lambda __, _, u_bas, x, x_loc, func_num=func_num: k1
+            ops = (lambda __, _, u_bas, x, x_loc, func_num=func_num: k1
                 * u_bas(0 * dir(x_loc), func_num),
                 lambda __, _, u_bas, x, x_loc, func_num=func_num: k2
-                * u_bas(dir(x_loc), func_num),
-                ]
-            connect_right_operators += [
-                lambda __, _, u_bas, x, x_loc, func_num=func_num: k1
-                * u_bas(0 * dir(x_loc), func_num),
-                lambda __, _, u_bas, x, x_loc, func_num=func_num: k2
-                * u_bas(dir(x_loc), func_num),
-                ]
-        connect_ops = [connect_left_operators, connect_right_operators]
-        return connect_ops
-
+                * u_bas(dir(x_loc), func_num))
+            left_operators += [*ops]
+            right_operators += [*ops]
+        condition['left'] = left_operators 
+        condition['right'] = right_operators 
+        #connect_ops = [left_operators, right_operators]
+        return condition
+    
+    def default_points(self, type):
+        match type:
+            case 'connect':
+                return self.default_connect_points()
+            case 'border':
+                return self.default_connect_points()
+            case 'default':
+                return self.default_colloc_points()
+    
+    def default_connect_points(self):
+        borders = np.array([[-1.],[1]])
+        match self.n_dims:
+            case 1:
+                return borders
+            case 2:
+                points = []
+                #for i in range(self.n_dims):
+                x = np.linspace(-1,1,self.power)
+                X, Y = np.meshgrid(borders, x)
+                points += np.vstack([X.ravel(), Y.ravel()])
+                points += np.vstack([Y.ravel(), X.ravel()])
+                return points
+            case _:
+                print('WARNING: default points for >3d case is not implemented\n please set them mannualy after initialisation')
+                return []
+    
+    def default_colloc_points(self):
+        match self.n_dims:
+            case 1:
+                x = np.linspace(-1,1,self.power)
+                return x.reshape((-1,1))
+            case 2:
+                points = []
+                #for i in range(self.n_dims):
+                x = np.linspace(-1,1,self.power)
+                X, Y = np.meshgrid(x, x)
+                points = np.vstack([X.ravel(), Y.ravel()])
+                return points
+            case _:
+                print('WARNING: default points for >3d case is not implemented\n please set them mannualy after initialisation')
+                return []
+    
+    def check_connect_present(self, conditions_dict):
+        for condition in conditions_dict.values():
+            try:
+                if condition['type']=='connect':
+                    return True
+                else:
+                    pass
+            except:
+                condition['type'] = 'default'
+        return False
+    
     def generate_global_system(
-        self, points: np.array, colloc_ops, border_ops, data_ops=[], connect_ops=[], connect_weight=1
+        self, conditions_dict
     ) -> tuple:
-        colloc_points, connect_points, border_points, data_points = points
-
-        # default connection
-        if len(connect_ops) == 0:
-            connect_ops = self.default_connect_ops()
+        if not(self.check_connect_present(conditions_dict)):
+            # add connection_operators
+            conditions_dict['_default_connect'] = self.default_connect_cond()
         
-        # default colloc points
-        if len(colloc_points) == 0:
-            colloc_points = utils.f_collocation_points(self.power)
-
-        inds = [list(range(size)) for size in self.dim_sizes]
-        all_cells = list(itertools.product(*inds))
-        num_of_cells = len(all_cells)
+        #move all of this to init section
         num_of_vars = self.cell_size  
         
-        def generate_global_condition_mat(points, ops, points_filter, _type=None):
+        def generate_global_condition_mat(condition):
+            ops = (condition['left'], condition['right'])
+            points = condition['points']
+            points_filter = self.choose_points_filter(condition['type'])
             
-            #if _type == "data":
             num_of_lines = len(points) * len(ops[0])
-            num_of_eqs = len(all_cells) * num_of_lines
+            num_of_eqs = len(self.all_cells) * num_of_lines
             
-            global_mat = np.zeros((num_of_eqs, num_of_vars * num_of_cells))
+            global_mat = np.zeros((num_of_eqs, num_of_vars * len(self.all_cells)))
             global_right = np.zeros(num_of_eqs)
             
-            for cell_num in all_cells:
+            for cell_num in self.all_cells:
                 points_for_use = points_filter(points, cell_num)
                 cell_ind = self.cell_index(cell_num)
+                
                 slice0 = lambda x: slice(cell_ind * num_of_lines, cell_ind * num_of_lines + x, None) 
                 slice1 = slice(cell_ind * num_of_vars, (cell_ind + 1) * num_of_vars, None)
-                if _type is None or _type in ['default', 'data']:
+                if condition['type'] is None or condition['type'] in ['default', 'border']:
                     _mat, _r = self.generate_subsystem(ops, cell_num, points_for_use)
                     global_mat[slice0(_mat.shape[0]), slice1] = _mat
                     global_right[slice0(_mat.shape[0])] = _r
-                elif _type=='connect':
+                elif condition['type'] =='connect':
                     connect_left_operators, connect_right_operators = ops
                     _mat = self.generate_connection_couple(ops,cell_num,points_for_use)
                     global_mat[slice0(_mat.shape[0])] = _mat
             return global_mat, global_right
-
-        global_colloc_mat, global_colloc_r = generate_global_condition_mat(colloc_points, colloc_ops, self.colloc_points_filter)
-        global_border_mat, global_border_r = generate_global_condition_mat(border_points, border_ops, self.border_points_filter)
-        global_connect_mat, global_connect_r = generate_global_condition_mat(connect_points, connect_ops, self.connect_points_filter, _type='connect')
-        global_data_mat, global_data_r = generate_global_condition_mat(data_points, data_ops, self.data_points_filter)
         
-        res_mat = utils.concat([global_colloc_mat, global_border_mat,
-                        global_connect_mat * connect_weight, global_data_mat])
-        res_right = utils.concat([global_colloc_r, global_border_r, 
-                        global_connect_r * connect_weight, global_data_r])
+        res_mat = None
+        res_right = None
+        for condition in conditions_dict.values():
+            if np.any(condition['points'] == 'default'):
+                condition['points'] = self.default_points(condition['type'])
+            mat, r_side = generate_global_condition_mat(condition)
+            res_mat = utils.concat((res_mat, mat))
+            res_right = utils.concat((res_right, r_side))
 
         notnull_ind = np.sum(res_mat != 0, axis=1) != 0
         res_mat = res_mat[notnull_ind]
         res_right = res_right[notnull_ind]
         return res_mat, res_right
 
-    def colloc_points_filter(self, points, cell_num):
+    def choose_points_filter(self, type="default"):
+        match type:
+            case "default":
+                return self.default_points_filter
+            case "data":
+                return self.data_points_filter
+            case "border":
+                return self.border_points_filter
+            case "connect":
+                return self.connect_points_filter
+
+    def default_points_filter(self, points, cell_num):
         return points
     
     def data_points_filter(self, points, cell_num):
@@ -498,7 +563,7 @@ class Solution:
         mask = [False]*len(points)
         for i, point in enumerate(points):
             cell, local_point = self.localize(point)
-            if cell == cell_num: 
+            if cell == cell_num:
                 mask[i]=True
                 local_points[i]=local_point
         return local_points[mask]
@@ -537,6 +602,7 @@ class Solution:
             np.logical_or(left_connect_for_use, right_connect_for_use)
         ]
         return connect_points_for_use
+
         
     def global_solve(
         self,
@@ -566,76 +632,3 @@ class Solution:
                     ].reshape(cell_shape)
         return A, b
 
-
-# ______________________________TESTING________________________
-
-if __name__ == "__main__":
-
-    colloc_points = utils.f_collocation_points(5)
-
-    power = 4
-    function_list = ['u']
-    variable_list = ['x']
-    customs = {'small': 1e-5}
-    params = {
-        "n_dims": 1,
-        "dim_sizes": np.array([3]),
-        "area_lims": np.array([[0, 1]]),
-        "power": power,
-    }
-    sol = Solution(**params)
-
-    w = sol.steps[0] / 2
-    def lp(lines_list, function_list=function_list, variable_list = variable_list, customs=customs):
-        line_res = np.array([utils.lp(line, function_list=function_list, variable_list=variable_list, customs=customs) for line in lines_list]).T
-        return line_res
-
-    colloc_lines = ['(d/dx)^3 u = np.exp(x) * (x**4 + 14 * (x**3) + 49 * (x**2) + 32 * x - 12)']
-    
-    initial_string = '1' #'int(x[0] < sol.area_lims[0, 0] + small)'
-    border_lines = [initial_string + '* u = ' + initial_string + ' * 0.']
-
-    colloc_ops = lp(colloc_lines, customs=customs)
-    border_ops = lp(border_lines, customs=customs)
-    
-    k1,k2 = 1,1
-    func_num = 0
-    connect_left_operators = [
-        lambda __, _, u_bas, x, x_loc, func_num=func_num: k1
-        * u_bas(0 * dir(x_loc), func_num)
-        + k2 * np.sum(dir(x_loc)) * u_bas([0, 1], func_num),
-        lambda __, _, u_bas, x, x_loc, func_num=func_num: k1
-        * u_bas(2 * dir(x_loc), func_num)
-        + k2 * np.sum(dir(x_loc)) * u_bas([0, 3], func_num)
-    ]
-    connect_right_operators = [
-        lambda __, _, u_bas, x, x_loc, func_num=func_num: k1
-        * u_bas(0 * dir(x_loc), func_num)
-        - k2 * np.sum(dir(x_loc)) * u_bas([0, 1], func_num),
-        lambda __, _, u_bas, x, x_loc, func_num=func_num: k1
-        * u_bas(2 * dir(x_loc), func_num)
-        - k2 * np.sum(dir(x_loc)) * u_bas([0, 3], func_num)
-    ]
-    connect_ops = [connect_left_operators, connect_right_operators]
-
-    connect_points = np.array([[-1], [1]])
-    border_points = connect_points
-    
-    points = (colloc_points, connect_points, border_points)
-
-    iteration_dict = {
-        "points": points,
-        "colloc_ops": colloc_ops,
-        "border_ops": border_ops,
-        #"connect_ops": connect_ops,
-    }
-    
-    A, b = sol.global_solve(calculate=False, **iteration_dict)
-    print(A.shape)
-    print(A)
-    print(b)
-    
-    A, b = sol.global_solve(**iteration_dict)
-    #for i in range(20):
-    #    sol.iterate_cells(**iteration_dict)
-    utils.plot(sol)
