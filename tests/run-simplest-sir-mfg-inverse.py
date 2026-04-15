@@ -22,7 +22,7 @@ def eval_error(sol, sol_mes, A,b):
     er[5] = true_resudual
     
     for i in range(4):
-        er[5+1+i] = eval_residuals(raw_res, 'pde', [i])
+        er[5+1+i] = eval_residuals(sol,raw_res, 'pde', [i])
     #for i in range(2):
     #    all_errors[j,len(errors)+1+4+i] = eval_residuals(raw_res, 'BORDER_OPS', [i*2,i*2+1])
     #print(all_errors)
@@ -47,7 +47,7 @@ def pack_coefs(sol):
         res[size * cell_index : size * (cell_index + 1)] = cell_res
     return res
 
-def eval_residuals(raw_res, name, i):
+def eval_residuals(sol,raw_res, name, i):
     def delete_part(settings, name):
         settings['CONDITIONS'][name]['left'] = []
         settings['CONDITIONS'][name]['right'] = []
@@ -130,7 +130,7 @@ for i_noise, noise_lvl in enumerate(noise_lvl_set):
         logs = pd.DataFrame(all_errors, columns=col_names)
         logs = logs.dropna()
         logs['index']=logs.index
-        logs.to_csv('logs'+str(i_noise) + '_' + str(i_data) + '.csv', sep=',', float_format='%.3f')
+        logs.to_csv('logs'+str(i_noise) + '_' + str(i_data) + '.csv', sep=',', float_format='%.3e')
 
 n = 20
 ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)
