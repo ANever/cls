@@ -3,7 +3,7 @@ import numpy as np
 import re
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-#from scipy.special import roots_legendre
+from scipy.special import roots_legendre
 import numbers
 import yaml
 
@@ -37,6 +37,10 @@ def eval_dict(d, kwargs={}, recursion=0):
 
 
 def concat(args):
+    if args[0] is None:
+        return args[1]
+    if args[1] is None:
+        return args[0]
     if len(args) == 2:
         return _concat(args[0], args[1])
     else:

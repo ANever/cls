@@ -22,7 +22,7 @@ def eval_error(sol, sol_mes, A,b):
     er[5] = true_resudual
     
     for i in range(4):
-        er[5+1+i] = eval_residuals(raw_res, 'COLLOC_OPS', [i])
+        er[5+1+i] = eval_residuals(sol,raw_res, 'pde', [i])
     #for i in range(2):
     #    all_errors[j,len(errors)+1+4+i] = eval_residuals(raw_res, 'BORDER_OPS', [i*2,i*2+1])
     #print(all_errors)
@@ -47,22 +47,22 @@ def pack_coefs(sol):
         res[size * cell_index : size * (cell_index + 1)] = cell_res
     return res
 
-def eval_residuals(raw_res, name, i):
+def eval_residuals(sol,raw_res, name, i):
     def delete_part(settings, name):
-        settings[name]['left'] = []
-        settings[name]['right'] = []
+        settings['CONDITIONS'][name]['left'] = []
+        settings['CONDITIONS'][name]['right'] = []
         return settings
     def choose_part(settings, name, i):
         settings_left = []
         settings_right = []
         for ii in i:
-            settings_left.append(settings[name]['left'][ii])
-            settings_right.append(settings[name]['right'][ii])
-        settings[name]['left'] = settings_left
-        settings[name]['right'] = settings_right
+            settings_left.append(settings['CONDITIONS'][name]['left'][ii])
+            settings_right.append(settings['CONDITIONS'][name]['right'][ii])
+        settings['CONDITIONS'][name]['left'] = settings_left
+        settings['CONDITIONS'][name]['right'] = settings_right
         return settings
     inner_temp_settings = cp(temp_settings)
-    names = ['COLLOC_OPS', 'BORDER_OPS']
+    names = ['pde', 'border']
     for n in names:
         if n != name:
             inner_temp_settings = delete_part(inner_temp_settings, n)
@@ -91,9 +91,10 @@ for i_noise, noise_lvl in enumerate(noise_lvl_set):
         settings_filename = "settings/simplest_mfg_inverse.yaml"
         with open(settings_filename, mode="r") as file:
             settings = yaml.safe_load(file)
-
-        settings['CUSTOMS']['I_info'] = lambda x : (1+random()*noise_lvl)*sol_mes.eval(point=x, der=[0], func=1, cells_closed_right=True)
-        settings['DATA_POINTS'] = np.array(np.linspace(-1,1,num_data_points).reshape(-1,1))#utils.f_collocation_points(settings['MODEL']['power']+1)
+        
+        fixed_noize = random(num_data_points)
+        settings['CUSTOMS']['I_info'] = lambda x : (1+fixed_noize*noise_lvl)*sol_mes.eval(point=x, der=[0], func=1, cells_closed_right=True)
+        settings['CONDITIONS']['data']['points'] = np.array(np.linspace(-1,1,num_data_points).reshape(-1,1))#utils.f_collocation_points(settings['MODEL']['power']+1)
 
         temp_settings = cp(settings)
         settings, iteration_dict = prepare_settings(settings)
@@ -114,7 +115,7 @@ for i_noise, noise_lvl in enumerate(noise_lvl_set):
                 alpha=0, #1e-7,
                 **iteration_dict,
             )
-            speed = 0.9
+            speed = 0.8
             raw_res = pack_coefs(sol)
             sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs
             errors = eval_error(sol, sol_mes, A, b)
@@ -122,15 +123,14 @@ for i_noise, noise_lvl in enumerate(noise_lvl_set):
             
             coef_change = np.max(np.abs(prev_coefs - sol.cells_coefs))
             print(j,' | ', coef_change ,' | ', errors)
-            if coef_change<1e-7:
+            if coef_change<1e-7 or np.isnan(coef_change):
                 break
-        #plot(sol)
 
         col_names = ['err_S', 'err_I', 'err_uS','err_uI', 'beta', 'residual', 'residual_S', 'residual_I', 'residual_uS', 'residual_uI',] #'residual_initial', 'residual_terminal']
         logs = pd.DataFrame(all_errors, columns=col_names)
         logs = logs.dropna()
         logs['index']=logs.index
-        logs.to_csv('logs'+str(i_noise) + '_' + str(i_data) + '.csv', sep=',')
+        logs.to_csv('logs'+str(i_noise) + '_' + str(i_data) + '.csv', sep=',', float_format='%.3e')
 
 n = 20
 ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)
