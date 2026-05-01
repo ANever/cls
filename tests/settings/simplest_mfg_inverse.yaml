@@ -38,13 +38,13 @@ CONDITIONS:
       left:
         - '- (d/dt) S - beta(u_loc) * ( beta_max * ( &S * &I ) + &beta_max * ( S * &I ) + &beta_max * ( &S * I ))'
         - '- (d/dt) I + beta(u_loc) * ( beta_max * ( &S * &I ) + &beta_max * ( S * &I ) + &beta_max * ( &S * I )) - gamma * I '  
-        - '- (d/dt) uS - beta(u_loc) *( &beta_max * &I * ( - uS ) + beta_max * &I * ( - &uS + &uI ) + &beta_max * I * ( - &uS + &uI ) )'
+        - '- (d/dt) uS - beta(u_loc) *( &beta_max * &I * ( - uS + uI) + beta_max * &I * ( - &uS + &uI ) + &beta_max * I * ( - &uS + &uI ) )'
         - '- (d/dt) uI - ( -gamma * uI )'
         - '2*( (d/dt) beta_max )'
       right:
         - '- 2 * beta(u_loc) * &beta_max * ( &S * &I )'
         - '2 * beta(u_loc) * &beta_max * ( &S * &I )'
-        - 'alpha(u_loc)**2 - 2 * &beta_max * beta(u_loc) * ( &I * ( - &uS + &uI / 2 - w / 2))'
+        - 'alpha(u_loc)**2 - 2 * &beta_max * beta(u_loc) * ( &I * ( - &uS + &uI - w / 2))'
         - 'cost_inf'
         - '0'
       points: default
