@@ -15,8 +15,8 @@ def eval_error(sol, sol_mes, A,b):
     for func in range(4):
         for t in ts:
             inc = sol.eval([t],[0],func) - sol_mes.eval([t],[0],func)
-            er[func] += float(inc)**2
-        er[4] = abs(sol.eval([0.2],[0],func=4)-20)
+            er[func] += np.abs(float(inc))#**2
+    er[4] = abs(sol.eval([0.2],[0],func=4)-20)
         
     true_resudual = np.sqrt(np.sum((A @ raw_res - b)**2))/len(b)
     er[5] = true_resudual
@@ -29,6 +29,26 @@ def eval_error(sol, sol_mes, A,b):
     
     return er
 
+
+def eval_error_rel(sol, sol_mes, A,b):
+    er = [0]*10
+    for func in range(4):
+        for t in ts:
+            inc = (sol.eval([t],[0],func) - sol_mes.eval([t],[0],func))/(np.abs(sol_mes.eval([t],[0],func)) + 1e-10)
+            er[func] += abs(float(inc))#**2
+        er[4] = abs(sol.eval([0.2],[0],func=4)-20)/20
+        
+    true_resudual = np.sqrt(np.sum((A @ raw_res - b)**2))/len(b)
+    er[5] = true_resudual
+    
+    for i in range(4):
+        er[5+1+i] = eval_residuals(sol, raw_res, 'pde', [i])
+    #for i in range(2):
+    #    all_errors[j,len(errors)+1+4+i] = eval_residuals(raw_res, 'BORDER_OPS', [i*2,i*2+1])
+    #print(all_errors)
+    
+    return er
+    
 
 def pack_coefs(sol):
     res = np.zeros(np.prod(sol.cells_shape))
@@ -76,63 +96,110 @@ def eval_residuals(sol,raw_res, name, i):
     return np.sqrt(np.sum((A @ raw_res - b)**2))/len(b)
 
 noise_lvl_set = [0., 0.01, 0.05, 0.10, 0.20]
-num_data_points_set = 45*2**np.array(range(6))
+nn_points = 4
+num_data_points_set = 50*2**np.array(range(6))
+n_samples = 100
+final_errors = np.zeros((nn_points, len(noise_lvl_set), n_samples))
 
-for i_noise, noise_lvl in enumerate(noise_lvl_set):
-    for i_data, num_data_points in enumerate(num_data_points_set):
-        
-        settings_filename = "settings/simplest_mfg.yaml"
-        settings, sol_mes, iteration_dict = from_file(settings_filename)
-        with open('colloc_solution_coefs.pkl', 'rb') as in_file:
-            coefs = pkl.load(in_file)
+for i_data, num_data_points in enumerate(num_data_points_set):
+    for i_noise, noise_lvl in enumerate(noise_lvl_set):
+        for sample_i in range(n_samples):
+            settings_filename = "settings/simplest_mfg.yaml"
+            settings, sol_mes, iteration_dict = from_file(settings_filename)
+            with open('colloc_solution_coefs.pkl', 'rb') as in_file:
+                coefs = pkl.load(in_file)
 
-        sol_mes.cells_coefs = coefs['coefs']
+            sol_mes.cells_coefs = coefs['coefs']
 
-        settings_filename = "settings/simplest_mfg_inverse.yaml"
-        with open(settings_filename, mode="r") as file:
-            settings = yaml.safe_load(file)
-        
-        fixed_noize = random(num_data_points)
-        settings['CUSTOMS']['I_info'] = lambda x : (1+fixed_noize*noise_lvl)*sol_mes.eval(point=x, der=[0], func=1, cells_closed_right=True)
-        settings['CONDITIONS']['data']['points'] = np.array(np.linspace(-1,1,num_data_points).reshape(-1,1))#utils.f_collocation_points(settings['MODEL']['power']+1)
-
-        temp_settings = cp(settings)
-        settings, iteration_dict = prepare_settings(settings)
-        sol = Solution(**eval_dict(settings['MODEL'], {'np':np}))
-        sol.cells_coefs *= 0.0
-
-        n = 20
-        ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)
+            settings_filename = "settings/simplest_mfg_inverse.yaml"
+            with open(settings_filename, mode="r") as file:
+                settings = yaml.safe_load(file)
             
-        num_of_iterations = 100
-        true_resudual = np.empty(num_of_iterations)*np.nan
-        all_errors = np.empty((num_of_iterations,5+1+4))*np.nan
-        for j in range(num_of_iterations):
-            prev_coefs = copy.deepcopy(sol.cells_coefs)
-            A, b = sol.global_solve(
-                solver="np",
-                #svd_threshold=1e-8,
-                alpha=0, #1e-7,
-                **iteration_dict,
-            )
-            speed = 0.8
-            raw_res = pack_coefs(sol)
-            sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs
-            errors = eval_error(sol, sol_mes, A, b)
-            all_errors[j] = errors
-            
-            coef_change = np.max(np.abs(prev_coefs - sol.cells_coefs))
-            print(j,' | ', coef_change ,' | ', errors)
-            if coef_change<1e-7 or np.isnan(coef_change):
-                break
+            fixed_noize = random(num_data_points)
+            settings['CUSTOMS']['I_info'] = lambda x : (1+fixed_noize*noise_lvl)*sol_mes.eval(point=x, der=[0], func=1, cells_closed_right=True)
+            settings['CONDITIONS']['data']['points'] = np.array(np.linspace(-1,1,num_data_points).reshape(-1,1))#utils.f_collocation_points(settings['MODEL']['power']+1)
 
+            temp_settings = cp(settings)
+            settings, iteration_dict = prepare_settings(settings)
+            sol = Solution(**eval_dict(settings['MODEL'], {'np':np}))
+            sol.cells_coefs *= 0.0
+
+            n = 20
+            ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)
+                
+            num_of_iterations = 100
+            true_resudual = np.empty(num_of_iterations)*np.nan
+            all_errors = np.empty((num_of_iterations,5+1+4))*np.nan
+            all_rel_errors = np.empty((num_of_iterations,5+1+4))*np.nan
+            for j in range(num_of_iterations):
+                prev_coefs = copy.deepcopy(sol.cells_coefs)
+                A, b = sol.global_solve(
+                    solver="np",
+                    #svd_threshold=1e-8,
+                    alpha=0, #1e-7,
+                    **iteration_dict,
+                )
+                speed = 0.8
+                raw_res = pack_coefs(sol)
+                sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs
+                
+                errors = eval_error(sol, sol_mes, A, b)
+                all_errors[j] = errors
+                
+                rel_errors = eval_error_rel(sol, sol_mes, A, b)
+                all_rel_errors[j] = rel_errors
+                
+                coef_change = np.max(np.abs(prev_coefs - sol.cells_coefs))
+                print(j,' | ', coef_change ,' | ', errors)
+                if coef_change<1e-6 or np.isnan(coef_change):
+                    break
+                    
+            final_errors[i_data,i_noise,sample_i] = errors[4]
         col_names = ['err_S', 'err_I', 'err_uS','err_uI', 'beta', 'residual', 'residual_S', 'residual_I', 'residual_uS', 'residual_uI',] #'residual_initial', 'residual_terminal']
         logs = pd.DataFrame(all_errors, columns=col_names)
         logs = logs.dropna()
         logs['index']=logs.index
         logs.to_csv('logs'+str(i_noise) + '_' + str(i_data) + '.csv', sep=',', float_format='%.3e')
+        
+        logs = pd.DataFrame(all_rel_errors, columns=col_names)
+        logs = logs.dropna()
+        logs['index']=logs.index
+        logs.to_csv('logs'+str(i_noise) + '_' + str(i_data) + '_rel.csv', sep=',', float_format='%.3e')
 
 n = 20
 ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)
 points = [[t] for t in ts]
 vals = [[sol.eval(np.array([t]), [0], 1)] for t in ts]
+
+
+
+means = np.mean(final_results, axis=2)
+stds = np.std(final_results, axis=2)
+
+number_of_steps = num_data_points_set
+noise_levels = noise_lvl_set
+
+import pandas as pd
+a = pd.DataFrame(means)
+a.columns = noise_levels
+a['steps'] = number_of_steps
+a.to_csv('means.csv')
+
+a = pd.DataFrame(stds)
+a.columns = noise_levels
+a['steps'] = number_of_steps
+a.to_csv('stds.csv')
+
+means = np.mean(final_results/20, axis=2)
+stds = np.std(final_results/20, axis=2)
+
+import pandas as pd
+a = pd.DataFrame(means)
+a.columns = noise_levels
+a['steps'] = number_of_steps
+a.to_csv('rel_means.csv')
+
+a = pd.DataFrame(stds)
+a.columns = noise_levels
+a['steps'] = number_of_steps
+a.to_csv('rel_stds.csv')

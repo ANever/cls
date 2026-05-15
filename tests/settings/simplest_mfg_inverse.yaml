@@ -38,7 +38,7 @@ CONDITIONS:
       left:
         - '- (d/dt) S - beta(u_loc) * ( beta_max * ( &S * &I ) + &beta_max * ( S * &I ) + &beta_max * ( &S * I ))'
         - '- (d/dt) I + beta(u_loc) * ( beta_max * ( &S * &I ) + &beta_max * ( S * &I ) + &beta_max * ( &S * I )) - gamma * I '  
-        - '- (d/dt) uS - beta(u_loc) *( &beta_max * &I * ( - uS + uI) + beta_max * &I * ( - &uS + &uI ) + &beta_max * I * ( - &uS + &uI ) )'
+        - '- (d/dt) uS - beta(u_loc) *( &beta_max * &I * ( - uS + uI ) + beta_max * &I * ( - &uS + &uI ) + &beta_max * I * ( - &uS + &uI ) )'
         - '- (d/dt) uI - ( -gamma * uI )'
         - '2*( (d/dt) beta_max )'
       right:
