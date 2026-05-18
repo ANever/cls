@@ -14,7 +14,7 @@ def prepare_settings(settings):
         if isinstance(customs[key], str):
             for i, var in enumerate(settings['OUT_VAR_NAMES']):
                  customs[key] = customs[key].replace(' '+var+' ', 'u_(func='+str(i)+')')
-            compile(customs[key], '<string>', 'eval')
+            customs[key] = compile(customs[key], '<string>', 'eval')
             customs[key] = eval(customs[key], locals() | customs | {'np':np})
     
     def lp(line, function_list=settings['OUT_VAR_NAMES'], variable_list = settings['IN_VAR_NAMES'], customs=customs):
@@ -53,7 +53,7 @@ def prepare_settings_old(settings):
         if isinstance(customs[key], str):
             for i, var in enumerate(settings['OUT_VAR_NAMES']):
                  customs[key] = customs[key].replace(' '+var+' ', 'u_(func='+str(i)+')')
-            compile(customs[key], '<string>', 'eval')
+            customs[key] = compile(customs[key], '<string>', 'eval')
             customs[key] = eval(customs[key], locals() | customs | {'np':np})
     
     def lp(line, function_list=settings['OUT_VAR_NAMES'], variable_list = settings['IN_VAR_NAMES'], customs=customs):

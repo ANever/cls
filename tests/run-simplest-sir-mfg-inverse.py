@@ -103,6 +103,7 @@ final_errors = np.zeros((nn_points, len(noise_lvl_set), n_samples))
 
 for i_data, num_data_points in enumerate(num_data_points_set):
     for i_noise, noise_lvl in enumerate(noise_lvl_set):
+        print(i_data, i_noise)
         for sample_i in range(n_samples):
             settings_filename = "settings/simplest_mfg.yaml"
             settings, sol_mes, iteration_dict = from_file(settings_filename)
@@ -139,7 +140,7 @@ for i_data, num_data_points in enumerate(num_data_points_set):
                     alpha=0, #1e-7,
                     **iteration_dict,
                 )
-                speed = 0.8
+                speed = 1
                 raw_res = pack_coefs(sol)
                 sol.cells_coefs = (1-speed)*prev_coefs + speed*sol.cells_coefs
                 
@@ -150,8 +151,9 @@ for i_data, num_data_points in enumerate(num_data_points_set):
                 all_rel_errors[j] = rel_errors
                 
                 coef_change = np.max(np.abs(prev_coefs - sol.cells_coefs))
-                print(j,' | ', coef_change ,' | ', errors)
-                if coef_change<1e-6 or np.isnan(coef_change):
+                #print(j,' | ', coef_change ,' | ', errors)
+                if coef_change<1e-5 or np.isnan(coef_change):
+                    print('converged')
                     break
                     
             final_errors[i_data,i_noise,sample_i] = errors[4]
