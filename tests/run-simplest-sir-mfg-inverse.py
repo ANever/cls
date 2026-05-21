@@ -111,7 +111,6 @@ for i_data, num_data_points in enumerate(num_data_points_set):
                 coefs = pkl.load(in_file)
 
             sol_mes.cells_coefs = coefs['coefs']
-
             settings_filename = "settings/simplest_mfg_inverse.yaml"
             with open(settings_filename, mode="r") as file:
                 settings = yaml.safe_load(file)
@@ -124,7 +123,8 @@ for i_data, num_data_points in enumerate(num_data_points_set):
             settings, iteration_dict = prepare_settings(settings)
             sol = Solution(**eval_dict(settings['MODEL'], {'np':np}))
             sol.cells_coefs *= 0.0
-
+            if sample_i > 0:
+                sol.cells_coefs = saved_coefs
             n = 20
             ts = np.linspace(settings['MODEL']["area_lims"][0, 0], settings['MODEL']["area_lims"][0, 1] - 1e-9, n)
                 
@@ -155,7 +155,7 @@ for i_data, num_data_points in enumerate(num_data_points_set):
                 if coef_change<1e-5 or np.isnan(coef_change):
                     print('converged')
                     break
-                    
+                saved_coefs = sol.cells_coefs
             final_errors[i_data,i_noise,sample_i] = errors[4]
         col_names = ['err_S', 'err_I', 'err_uS','err_uI', 'beta', 'residual', 'residual_S', 'residual_I', 'residual_uS', 'residual_uI',] #'residual_initial', 'residual_terminal']
         logs = pd.DataFrame(all_errors, columns=col_names)
