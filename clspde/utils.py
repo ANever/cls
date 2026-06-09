@@ -3,7 +3,7 @@ import numpy as np
 import re
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from scipy.special import roots_legendre
+from scipy.special import roots_legendre, roots_chebyt
 import numbers
 import yaml
 
@@ -60,6 +60,11 @@ def _concat(a: np.array, b: np.array):
 def f_collocation_points(N):
     points = roots_legendre(N+1)[0]
     return np.array(points).reshape(N + 1, 1)
+
+def cheb_collocation_points(N):
+    points = roots_chebyt(N+1)[0]
+    return np.array(points, np.float32).reshape(N + 1, 1)
+
 
 
 def dir(point: np.array) -> np.array:

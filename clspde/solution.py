@@ -5,7 +5,7 @@ import itertools
 import clspde.utils as utils
 from .utils import dir
 from .qr_solver import QR_solve, SVD_solve
-from .basis import Basis
+from .basis import Basis, Cheb
 
 '''
 def sol_eval(sol, ts=ts, xs=xs):
@@ -44,7 +44,8 @@ class Solution:
         self.n_funcs = n_funcs
         self.init_grid()
         self.steps = (self.area_lims[:, 1] - self.area_lims[:, 0]) / self.dim_sizes
-        self.basis = Basis(power, steps=self.steps, n_dims=n_dims)
+        self.basis = Cheb(power, steps=self.steps, n_dims=n_dims) 
+        #self.basis = Basis(power, steps=self.steps, n_dims=n_dims)
         self.split_mats_inited = False
         if periodic is None:
             periodic = [False]* self.n_dims
@@ -446,6 +447,8 @@ class Solution:
                 return self.default_connect_points()
             case 'border':
                 return self.default_connect_points()
+            case 'cheb':
+                return self.cheb_colloc_points()
             case 'default':
                 return self.default_colloc_points()
     
@@ -475,6 +478,22 @@ class Solution:
                 points = []
                 #for i in range(self.n_dims):
                 x = np.linspace(-1,1,self.power+2)
+                X, Y = np.meshgrid(x, x)
+                points = np.vstack([X.ravel(), Y.ravel()])
+                return points
+            case _:
+                print('WARNING: default points for >3d case is not implemented\n please set them mannualy after initialisation')
+                return []
+                
+    def default_colloc_points(self):
+        match self.n_dims:
+            case 1:
+                x = utils.cheb_collocation_points(self.power+1) #np.linspace(-1,1,self.power+2)
+                return x.reshape((-1,1))
+            case 2:
+                points = []
+                #for i in range(self.n_dims):
+                x = utils.cheb_collocation_points(self.power+1)
                 X, Y = np.meshgrid(x, x)
                 points = np.vstack([X.ravel(), Y.ravel()])
                 return points
